@@ -1,0 +1,6 @@
+require("item-group")
+require("prototypes.controller_mem")
+require("prototypes.controller_out")
+require("prototypes.controller_in")
+require("prototypes.controller_cpu")
+require("prototypes.tech")

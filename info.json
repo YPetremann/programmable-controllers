@@ -1,0 +1,9 @@
+{
+  "name": "ProgrammableControllers",
+  "version": "0.0.2",
+  "title": "Programmable Controllers",
+  "author": "XCodersTeam",
+  "homepage": "",
+  "dependencies": ["base"],
+  "description": "Programmable circuit network controller"
+}
