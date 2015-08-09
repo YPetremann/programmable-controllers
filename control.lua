@@ -6,7 +6,7 @@ require("helpers.gui_helpers")
 local cycles_per_tick = 1024
 local data={}
 local classes = {}
-local _debug=true
+--local _debug=true
 
 local function debugLog(message)
     if _debug then -- set for debug
@@ -238,7 +238,7 @@ local function OpenMainGUI(playerIndex,k,i)
   GUI.PopAll()
   GUI.PushLeftSection(playerIndex)
   k.gui[playerIndex].code = GUI.PushParent(GUI.Frame("controller-cpu-code_"..k.entity.position.x.."_"..k.entity.position.y, "Controller CPU CODE", GUI.HORIZONTAL))
-  k.gui[playerIndex].lines = k.code
+  k.gui[playerIndex].lines = addAll({},k.code)
   k.gui[playerIndex].offset = 0
   GUI.PushParent(GUI.Flow("line_flow", GUI.VERTICAL))
   for i=1,16 do
@@ -279,7 +279,7 @@ local function CloseMainGUI(playerIndex,k,i)
         end
     end
   end
-  
+ 
   if not m then
       debugLog("Code edited")
       k.code = k.gui[playerIndex].lines
