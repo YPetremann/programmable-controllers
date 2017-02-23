@@ -103,8 +103,6 @@ function mergeSignals(red, green)
 	return ret
 end
 function remap(entity, index, mode)
-	dbg_clr("GROUP")
-	dbg_clr("DEBUG")
 	local x = math.floor(entity.position.x)
 	local y = math.floor(entity.position.y)
 	local update = {}
@@ -252,7 +250,11 @@ function poke(index, addr, value)
 		memory[lent][laddr] = value
 	end
 end
-
+function DEC_HEX(IN)
+	OUT = string.format("%x", IN or 0):upper()
+	while #OUT<4 do OUT = "0"..OUT end
+	return OUT
+end
 classes["controller-mem"]={
 	on_load_mem=function(index, entity)
 		local parameters = entity.get_control_behavior().parameters
@@ -328,6 +330,32 @@ classes["controller-cpu"]={
 	on_gui_create=function(index, entity, player)
 		local gui = player.gui.left.add{type="frame", name="pci-cpu-"..index, direction="vertical", caption="CPU"}
 		gui.add{type="progressbar", name="cycles", size=100, value=0}
+		gui.add{type="scroll-pane", name="log", direction="vertical", caption=category}
+		gui.log.vertical_scroll_policy="auto"
+		gui.log.horizontal_scroll_policy="never"
+		gui.log.style.maximal_height=900
+		local lines = {}
+		table.insert(lines,"id: "..index)
+		table.insert(lines,"group: "..global.rgrp[index])
+		local grp = global.grp[global.rgrp[index]]
+		for k,v in pairs(grp) do
+			table.insert(lines," - ["..DEC_HEX(k).."] "..v.." ("..global.rmap[v][1]..","..global.rmap[v][2]..") "..global.ent[v].name)
+		end
+		table.insert(lines,"type: "..global.ent[index].name)
+		local n = 1
+		for _,line in pairs(lines) do
+			local label = gui.log.add{type="label", name=n, direction="vertical", caption=line}
+			label.style.minimal_height = 8
+			label.style.maximal_height = 8
+			label.style.bottom_padding = 0
+			label.style.top_padding = 0
+			n = n + 1
+		end
+		local	nd = gui.log.add{type="label", name="end", direction="vertical", caption=" "}
+		nd.style.minimal_height=5
+		nd.style.maximal_height=5
+		nd.style.bottom_padding=0
+		nd.style.top_padding=0
 	end, 
 	on_gui_destroy=function(index, entity, player)
 		player.gui.left["pci-cpu-"..index].destroy()
