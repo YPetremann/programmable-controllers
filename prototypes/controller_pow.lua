@@ -1,53 +1,38 @@
+    --~ working_sound =
+    --~ {
+      --~ sound =
+      --~ {
+        --~ filename = "__base__/sound/accumulator-working.ogg",
+        --~ volume = 1
+      --~ },
+      --~ idle_sound = {
+        --~ filename = "__base__/sound/accumulator-idle.ogg",
+        --~ volume = 0.4
+      --~ },
+      --~ max_sounds_per_type = 5
+    --~ },
+
 data:extend({ 
 	{
-		type = "constant-combinator",
-		name = "controller-mem",
-		icon = "__programmable-controllers__/graphics/icons/controller-mem.png",
+    type = "electric-energy-interface",
+		name = "controller-pow",
+		icon = "__programmable-controllers__/graphics/icons/controller-pow.png",
 		flags = {"placeable-neutral", "player-creation"},
-		minable = {hardness = 0.2, mining_time = 0.5, result = "controller-mem"},
+		minable = {hardness = 0.2, mining_time = 0.5, result = "controller-pow"},
 		max_health = 55,
 		corpse = "small-remnants",
 		collision_box = {{-0.3, -0.3}, {0.3, 0.3}},
 		selection_box = {{-0.5, -0.5}, {0.5, 0.5}},
-		item_slot_count = 16,
-		sprites = {
-			north = {
-				filename = "__programmable-controllers__/graphics/entity/controller-mem.png",
-				priority = "high",
-				width = 64,	height = 64,
-				shift = {0, 0},
-				frame_count = 1,
-				axially_symmetrical = false,
-				direction_count = 1,
-			},
-			east = {
-				filename = "__programmable-controllers__/graphics/entity/controller-mem.png",
-				priority = "high",
-				width = 64,	height = 64,
-				shift = {0, 0},
-				frame_count = 1,
-				axially_symmetrical = false,
-				direction_count = 1,
-			},
-			south = {
-				filename = "__programmable-controllers__/graphics/entity/controller-mem.png",
-				priority = "high",
-				width = 64,	height = 64,
-				shift = {0, 0},
-				frame_count = 1,
-				axially_symmetrical = false,
-				direction_count = 1,
-			},
-			west = {
-				filename = "__programmable-controllers__/graphics/entity/controller-mem.png",
-				priority = "high",
-				width = 64,	height = 64,
-				shift = {0, 0},
-				frame_count = 1,
-				axially_symmetrical = false,
-				direction_count = 1,
-			}
-		},
+		item_slot_count = 32,
+    picture = {
+			filename = "__programmable-controllers__/graphics/entity/controller-pow.png",
+			priority = "high",
+			width = 64,	height = 64,
+			shift = {0, 0},
+			frame_count = 1,
+			axially_symmetrical = false,
+			direction_count = 1,
+    },
 		activity_led_sprites = {
 			north = {
 				filename = "__base__/graphics/entity/combinator/activity-leds/combinator-led-constant-north.png",
@@ -131,27 +116,32 @@ data:extend({
 		vehicle_impact_sound =  { filename = "__base__/sound/car-metal-impact.ogg", volume = 0.65 },
 		energy_source = {
 			type = "electric",
-			usage_priority = "secondary-input"
+			buffer_capacity = "1MJ",
+			usage_priority = "secondary-input",
+			input_flow_limit = "150kW",
+			output_flow_limit = "0kW"
 		},
-		energy_usage_per_tick = "5KW",
+    energy_production = "0kW",
+    energy_usage = "0kW",
+		energy_usage_per_tick = "10KW"
 	},
 	{
 		type = "item",
-		name = "controller-mem",
-		icon = "__programmable-controllers__/graphics/icons/controller-mem.png",
+		name = "controller-pow",
+		icon = "__programmable-controllers__/graphics/icons/controller-pow.png",
 		flags = {"goes-to-quickbar"},
 		subgroup = "pc-blocks",
 		order = "a[input]",
-		place_result = "controller-mem",
+		place_result = "controller-pow",
 		stack_size = 50
 	},
 	{
 		type = "recipe",
-		name = "controller-mem",
+		name = "controller-pow",
 		enabled=false,
-		ingredients = {{"advanced-circuit", 4},{"copper-cable",8},{"controller-ext",1}},
-		result = "controller-mem",
+		ingredients = {{"copper-cable",16},{"controller-ext",1}},
+		result = "controller-pow",
 		result_count = 1
 	}
 })
-table.insert(data.raw.technology["advanced-electronics-2"].effects, {type = "unlock-recipe", recipe = "controller-mem"})
+table.insert(data.raw.technology["advanced-electronics-2"].effects, {type = "unlock-recipe", recipe = "controller-pow"})

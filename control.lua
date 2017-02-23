@@ -1,621 +1,495 @@
+function prequire(f)
+	local s, e=pcall(function()require(f)end)
+	if not s then
+		if type(e)=="string" then
+			print(f..":"..e)
+		else
+			print(f..": can't load "..modname.."/"..string.gsub(f, "%.", "/")..".lua")
+		end
+	end
+end
 
-require("defines")
+require("config")
+require("instructions")
 require("util")
-require("helpers.gui_helpers")
-
-local cycles_per_tick = 1024
-local data={}
-local classes = {}
---local _debug=true
-
-local function debugLog(message)
-    if _debug then -- set for debug
-    game.player.print(tostring(message))
-    end
+prequire("interface")
+prequire("defines")
+function dbg_log(category, message)
+	if config.debug then
+		for _, player in pairs(game.players) do
+			if player.gui.left.debug == nil then
+				player.gui.left.add{type="flow", name="debug", direction="vertical"}
+			end
+			if player.gui.left.debug[category] == nil then
+				player.gui.left.debug.add{type="frame", name=category, direction="vertical", caption=category}
+				player.gui.left.debug[category].add{type="scroll-pane", name="log", direction="vertical", caption=category}
+				player.gui.left.debug[category].log.vertical_scroll_policy="auto"
+				player.gui.left.debug[category].log.horizontal_scroll_policy="never"
+				player.gui.left.debug[category].log.style.maximal_height=900
+			end
+			if player.gui.left.debug[category].log["end"] ~= nil then
+				player.gui.left.debug[category].log["end"].destroy()
+			end
+			n=tostring(#player.gui.left.debug[category].log.children_names+1)
+			player.gui.left.debug[category].log.add{type="label", name=n, direction="vertical", caption=message}
+			player.gui.left.debug[category].log[n].style.minimal_height=8
+			player.gui.left.debug[category].log[n].style.maximal_height=8
+			player.gui.left.debug[category].log[n].style.bottom_padding=0
+			player.gui.left.debug[category].log[n].style.top_padding=0
+			player.gui.left.debug[category].log.add{type="label", name="end", direction="vertical", caption=" "}
+			player.gui.left.debug[category].log["end"].style.minimal_height=5
+			player.gui.left.debug[category].log["end"].style.maximal_height=5
+			player.gui.left.debug[category].log[n].style.bottom_padding=0
+			player.gui.left.debug[category].log[n].style.top_padding=0
+		end
+	end
 end
-
-
-local function ttostring(tab)
-    local res=""
-    if type(tab)=="table" then
-        res="{"
-            for k,v in pairs(tab) do
-                res=res.." "..tostring(k).." = "..ttostring(v)..","
-            end
-            res=res.."}"
-        else
-            res=tostring(tab)
-        end
-        return res
-    end
-    
-local function getLink(tab)
-    setmetatable(tab,{__call=function(tab) return tab end})
-    return tab()
-end
-
-   
-local function getArea(pos)
-    return {{pos.x-1,pos.y-1},{pos.x+1,pos.y+1}}
-end
-
-local function contains(tab,val)
-    for k,v in pairs(tab) do
-        if v==val then
-            return true
-        end
-    end
-    return false
-end
-
-local function addAll(tab,w)
-   for k,v in ipairs(w) do
-       table.insert(tab,v)
-   end
-   return tab
-end
-
-local function scanAround(entity,exclude)
-    debugLog(ttostring(entity.position))
-    local around=entity.surface.find_entities(getArea(entity.position))
-    table.insert(exclude,entity)
-    local res={entity}
-    for k,v in pairs(around) do
-        if string.match (v.name, "controller") then
-            if not contains(exclude,v) then
-                res=addAll(res,scanAround(v,exclude)) 
-            end
-        end
-    end
-    return res
-end
-
-local function countMemorySize(self)
-    local size = 0
-    for i,v in ipairs(self.peripherals) do
-        size = size + v:getSize()
-    end
-    return size
-end
-
-
-local function addStatusLabel(text,gui)
-    if gui.mode==1 then 
-        GUI.Label("status"..gui.status_index,text)
-    elseif gui.mode==2 and gui.status.flow["status"..gui.status_index] ~= nil then
-        gui.status.flow["status"..gui.status_index].caption=text
-    end
-    gui.status_index=gui.status_index+1
-end
-
-local function getControllerStatus(self)
-    if self.running then
-        return "RUNNING"
-    end
-    return "STOPPED"
-end
-
-local function systemInfo(self,gui)
-    addStatusLabel("==================================================================",gui)
-    addStatusLabel("STATUS: "..getControllerStatus(self),gui)
-    addStatusLabel("HALT REASON: "..self.halt_reason,gui)
-    addStatusLabel("CORE LOAD: "..(self.cycles_last_tick/cycles_per_tick * 100).."%",gui)
-    addStatusLabel("SYSTEM ADDRESS SPACE: "..self.address_space,gui)
-    local addr=0
-    for k,v in pairs(self.peripherals) do
-        addStatusLabel("P"..k..": FROM "..(addr+1).."  TO "..(addr+v:getSize()).." IS "..v:info(),gui)
-        addr=addr+v:getSize()
-    end
-    
-    --d=d.."PROGRAM SIZE: "..#self.code.." CYCLES".."\n"
-    addStatusLabel("==================================================================",gui)
-end
-
-
-local function getLines(gui)
-    for i=1,16 do
-        gui.lines[i+gui.offset] = gui.code.line_flow["line_group"..i].line.text
-    end
-end
-
-local function updateLines(gui)
-    for i=1,16 do
-        gui.code.line_flow["line_group"..i].num.caption = i + gui.offset
-        gui.code.line_flow["line_group"..i].line.text = gui.lines[i+gui.offset] or "" 
-    end
-end
-
-
-local function checkMem(obj,index)
-    if index <= 0 or index > obj.address_space then
-        classes["controller-cpu"].halt(obj,"SIGSEGV: index out of memory PCTR:"..obj.pctr.." INDEX:"..index)
-        return
-    end
-    return true
-end
-
-local function getByAccessor(obj,str)
-    if string.sub(str,1,1)=="#" then
-        return tonumber(string.sub(str,2))-obj.pctr-1
-    elseif string.sub(str,1,1)=="$" then
-        return tonumber(string.sub(str,2))
-    else 
-        return obj.memory[tonumber(str)]
-    end
-end
-
-
-local instructions = {}
-instructions["mov"]=function(obj,a,b)
-    obj.memory[tonumber(b)]=getByAccessor(obj,a)
-end
-instructions["inc"]=function(obj,a)
-    obj.memory[tonumber(a)]=obj.memory[tonumber(a)]+1
-end
-instructions["dec"]=function(obj,a)
-    obj.memory[tonumber(a)]=obj.memory[tonumber(a)]-1
-end
-instructions["add"]=function(obj,a,b)
-    obj.memory[tonumber(a)]=obj.memory[tonumber(a)]+getByAccessor(obj,b)
-end
-instructions["sub"]=function(obj,a,b)
-    obj.memory[tonumber(a)]=obj.memory[tonumber(a)]-getByAccessor(obj,b)
-end
-instructions["mul"]=function(obj,a,b)
-    obj.memory[tonumber(a)]=obj.memory[tonumber(a)]*getByAccessor(obj,b)
-end
-instructions["div"]=function(obj,a,b)
-    obj.memory[tonumber(a)]=obj.memory[tonumber(a)]/getByAccessor(obj,b)
-end
-instructions["hlt"]=function(obj,a)
-    classes["controller-cpu"].halt(obj,"HALTED BY PROGRAM: "..tostring(a))
-end
-
-instructions["jez"]=function(obj,a,b)
-    if getByAccessor(obj,a) == 0 then
-        obj.pctr = obj.pctr + getByAccessor(obj,b)
-    end
-end
-
-instructions["jnz"]=function(obj,a,b)
-    if getByAccessor(obj,a) ~= 0 then
-        obj.pctr = obj.pctr + getByAccessor(obj,b) 
-    end
-end
-
-instructions["jmp"]=function(obj,a)
-    obj.pctr = obj.pctr + getByAccessor(obj,a)
-end
-instructions["jlz"]=function(obj,a,b)
-    if getByAccessor(obj,a) < 0 then
-        obj.pctr = obj.pctr + getByAccessor(obj,b)
-    end
-end
-
-instructions["jgz"]=function(obj,a,b)
-    if getByAccessor(obj,a) > 0 then
-        obj.pctr = obj.pctr + getByAccessor(obj,b) 
-    end
-end
-
-
-instructions["nop"]=function(obj)
-end
-
-instructions["flo"]=function(obj,a)
-    obj.memory[tonumber(a)]=math.floor(tonumber(a))
-end
-instructions["cel"]=function(obj,a)
-    obj.memory[tonumber(a)]=math.ceil(tonumber(a))
-end
-instructions["pow"]=function(obj,a,b)
-    obj.memory[tonumber(a)]=math.pow(obj.memory[tonumber(a)],getByAccessor(obj,b))
-end
-instructions["rsh"]=function(obj,a,b)
-    obj.memory[tonumber(a)]=math.floor(obj.memory[tonumber(a)] / math.pow(2,getByAccessor(obj,b)))
-end
-
-instructions["lsh"]=function(obj,a,b)
-    obj.memory[tonumber(a)]=obj.memory[tonumber(a)] * math.pow(2,getByAccessor(obj,b))
-end
-
-local function OpenMainGUI(playerIndex,k,i)
-  if k.gui[playerIndex] ~= nil then
-    return
-  end
-  debugLog("Open Gui")
-  k.gui[playerIndex]={}
-  GUI.PushCenterSection(playerIndex)
-  k.gui[playerIndex].status = GUI.PushParent(GUI.Frame("controller-cpu_"..k.entity.position.x.."_"..k.entity.position.y, "Controller CPU", GUI.HORIZONTAL))
-  GUI.PushParent(GUI.Flow("flow", GUI.VERTICAL))
-  k.gui[playerIndex].mode=1
-  k.gui[playerIndex].status_index=1
-  systemInfo(k,k.gui[playerIndex])
-  GUI.PushParent(GUI.Flow("flow-d", GUI.HORIZONTAL))
-  GUI.Button("reset", "Reset", "ResetCPU", classes["controller-cpu"],k)
-  GUI.Button("restart", "Restart", "RestartCPU", classes["controller-cpu"],k)
-  GUI.Button("halt", "Halt", "HaltCPU", classes["controller-cpu"],k)
-  GUI.PopAll()
-  GUI.PushLeftSection(playerIndex)
-  k.gui[playerIndex].code = GUI.PushParent(GUI.Frame("controller-cpu-code_"..k.entity.position.x.."_"..k.entity.position.y, "Controller CPU CODE", GUI.HORIZONTAL))
-  k.gui[playerIndex].lines = addAll({},k.code)
-  k.gui[playerIndex].offset = 0
-  GUI.PushParent(GUI.Flow("line_flow", GUI.VERTICAL))
-  for i=1,16 do
-     GUI.PushParent(GUI.Flow("line_group"..i, GUI.HORIZONTAL))
-     GUI.Label("num",""..i)
-     GUI.TextField("line", "")
-     GUI.PopParent()
-  end
-  GUI.PushParent(GUI.Flow("flow-controls", GUI.HORIZONTAL))
-  GUI.Button("up", "UP", "ScrollUp", classes["controller-cpu"],k.gui[playerIndex])
-  GUI.Button("down", "DOWN", "ScrollDown", classes["controller-cpu"],k.gui[playerIndex])
-  GUI.PopAll()
-  updateLines(k.gui[playerIndex])
-end
-
-local function CloseMainGUI(playerIndex,k,i)
-  if k.gui[playerIndex]==nil then
-    return
-  end
-  debugLog("Close Gui")
-  getLines(k.gui[playerIndex])
-  k.gui[playerIndex].status.destroy()
-  k.gui[playerIndex].code.destroy()
-  
-  for i=#k.gui[playerIndex].lines,1,-1 do
-    if string.len(k.gui[playerIndex].lines[i])==0 then
-        k.gui[playerIndex].lines[i]=nil
-    else
-        break
-    end
-  end
-  local m = #k.code == #k.gui[playerIndex].lines
-  if m then
-    for i=1,#k.gui[playerIndex].lines do
-        if tostring(k.code[i]) ~= tostring(k.gui[playerIndex].lines[i]) then
-            m = false
-            break
-        end
-    end
-  end
- 
-  if not m then
-      debugLog("Code edited")
-      k.code = k.gui[playerIndex].lines
-  end
-  
-  k.gui[playerIndex]=nil
-  
-end
-
-
-function executeInstruction(obj,inst)
-    
-    if inst == nil then
-        classes["controller-cpu"].halt(obj,"PROGRAM ENDED")
-        return
-    end
-    if #inst == 0 then
-        return
-    end
-    local cmd = string.sub(inst,1,3)
-    
-    if cmd == "yld" then
-        return
-    end
-    local args_str = string.sub(inst,4)
-    local args = {obj}
-    for str in string.gmatch(args_str,"([#$]?[-0-9A-Za-z.]+)") do
-        table.insert(args,str)
-    end
-    local ok,err=pcall(instructions[cmd],unpack(args))
-    if not ok then
-        debugLog("LUA ERROR: "..err)
-    end
-    return ok
-end
-
-local function findDataByEntity(ty,ent)
-    for k,v in pairs(data[ty]) do
-        if v.entity==ent then
-            return v
-        end
-    end
-end
-
-local function regenMem(obj)
-   local memory={}
-        setmetatable(memory,{__newindex=function(table,index,value)
-        if checkMem(obj,index) then
-            local pos = 1
-            while true do --it not infinit i promise
-                    if obj.peripherals[pos]:getSize() >= index then
-                        obj.peripherals[pos]:setMem(index,value)
-                        break
-                    else
-                        index = index - obj.peripherals[pos]:getSize()
-                        pos = pos + 1
-                    end
-                end
-            end
-        end,
-        __index=function(table,index)
-            if checkMem(obj,index) then
-                local pos = 1
-                while true do --it not infinit i promise
-                    if obj.peripherals[pos]:getSize() >= index then
-                        return obj.peripherals[pos]:getMem(index)
-                    else
-                        index = index - obj.peripherals[pos]:getSize()
-                        pos = pos + 1
-                    end
-                end
-            end
-        end})
-        obj.memory=memory
-        
-end
-
-classes["controller-cpu"]={
-    onPlace=function(entity)
-        debugLog("CPU placed")
-        local obj=getLink({entity=entity,gui=getLink({}),peripherals=getLink({}),address_space = 0,halt_reason = "NEVER HALTED",running = false,code={},cycles_last_tick=0,pctr = 1})
-        regenMem(obj)
-        return obj
-    end,
-    onDestroy=function(entity)
-        debugLog("CPU removed")
-    end,
-    onTick=function(obj,index)
-        if obj.entity.energy > 0.5 then
-            for playerIndex = 1, #game.players do
-                if util.distance(game.players[playerIndex].position, obj.entity.position) < 2 then
-                    OpenMainGUI(playerIndex,obj,index)
-                else
-                    CloseMainGUI(playerIndex,obj,index)
-                end
-                if obj.gui[playerIndex] then
-                    obj.gui[playerIndex].mode=2
-                    obj.gui[playerIndex].status_index=1
-                    systemInfo(obj,obj.gui[playerIndex])
-                end
-            end
-            obj.cycles_last_tick = 0
-            while obj.running and obj.cycles_last_tick < cycles_per_tick do 
-                if not executeInstruction(obj,obj.code[obj.pctr]) then
-                    obj.pctr=obj.pctr+1
-                    break
-                end
-                obj.pctr=obj.pctr+1
-                obj.cycles_last_tick = obj.cycles_last_tick + 1
-            end
-        else
-            classes["controller-cpu"].halt(obj,"OUT OF POWER")
-        end
-    end,
-    ResetCPU=function(_,event,obj)
-        debugLog("Resetting CPU")
-        local controller_ent=scanAround(obj.entity,{})
-         obj.peripherals={}
-        for k,v in pairs(controller_ent) do
-            if classes[v.name]~= nil and classes[v.name].getPRP then
-                obj.peripherals=addAll(obj.peripherals,classes[v.name].getPRP(findDataByEntity(v.name,v)))
-            end
-        end
-        obj.address_space=countMemorySize(obj)
-        regenMem(obj)
-    end,
-    halt=function(obj,msg)
-        obj.running=false
-        obj.halt_reason=msg
-    end,
-    HaltCPU=function(_,event,obj)
-        obj.running=false
-        obj.halt_reason="HALTED BY USER"
-        debugLog("Halt")
-    end,
-    RestartCPU=function(_,event,obj)
-        getLines(obj.gui[event.player_index])
-        obj.code=obj.gui[event.player_index].lines
-        obj.running=true
-        for k,v in pairs(obj.peripherals) do
-            v:clear()
-        end
-    end,
-    ScrollDown=function(_,event,obj)
-        getLines(obj)
-        obj.offset = obj.offset + 1 
-        updateLines(obj)
-    end,
-    ScrollUp=function(_,event,obj)
-        getLines(obj)
-        if obj.offset >= 1 then
-            obj.offset = obj.offset - 1 
-        end
-        updateLines(obj)
-    end,
-    getPRP=function(obj)
-        return {{
-            setMem = function (self,index,value)
-                obj.pctr = index
-            end,
-            getMem = function (self,index)
-                return obj.pctr
-            end,
-            getSize = function (self)
-                return 1
-            end,
-            info = function(self)
-                return "PROGRAM COUNTER"
-            end,
-            clear = function(self)
-                obj.pctr=1
-            end
-        }}
-    end
-}
-
-classes["controller-mem"]={
-    onPlace=function(entity)
-        debugLog("MEM placed")
-        return {entity=entity,mem={}}
-    end,
-    onDestroy=function(entity)
-        debugLog("MEM removed")
-    end,
-    onTick=function(obj)
-        if obj.entity.energy < 0.5 then
-            obj.mem = {}
-        end
-    end,
-    getPRP=function(obj)
-        return {{
-            setMem = function (self,index,value)
-                obj.mem[index]=value
-            end,
-            getMem = function (self,index)
-                return obj.mem[index] or 0
-            end,
-            getSize = function (self)
-                return 32
-            end,
-            info = function(self)
-                return "MEM BLOCK"
-            end,
-            clear = function(self)
-                obj.mem={}
-            end
-        }}
-    end
-}
-
-classes["controller-out"]={
-    onPlace=function(entity)
-        debugLog("OUT placed")
-        return {entity=entity,mem={}}
-    end,
-    onDestroy=function(entity)
-        debugLog("OUT removed")
-    end,
-    onTick=function(obj)
-        local rec = obj.entity.get_circuit_condition(1)
-        for i=1,15 do
-            rec.parameters[i].count=obj.mem[i] or 0
-        end
-        obj.entity.set_circuit_condition(1,rec)
-    end,
-    getPRP=function(obj)
-        return {{
-            setMem = function (self,index,value)
-                obj.mem[index]=value
-            end,
-            getMem = function (self,index)
-                return obj.mem[index] or 0
-            end,
-            getSize = function (self)
-                return 15
-            end,
-            info = function(self)
-                return "OUT COMBINATOR"
-            end,
-            clear = function(self)
-                obj.mem={}
-            end
-        }}
-    end
-}
-
-classes["controller-in"]={
-    onPlace=function(entity)
-        debugLog("IN placed")
-        return {entity=entity,mem={}}
-    end,
-    onDestroy=function(entity)
-        debugLog("IN removed")
-    end,
-    onTick=function(obj)
-        if obj.entity.get_circuit_condition(1).fulfilled then
-            obj.mem[1]=1
-        else
-            obj.mem[1]=0
-        end
-    end,
-    getPRP=function(obj)
-        return {{
-            setMem = function (self,index,value)
-                --ERROR HERE
-            end,
-            getMem = function (self,index)
-                return obj.mem[index] or 0
-            end,
-            getSize = function (self)
-                return 1
-            end,
-            info = function(self)
-                return "1-INPUT"
-            end,
-            clear = function(self)
-                obj.mem={0}
-            end
-        }}
-    end
-}
-
-local function entityBuilt(event)
-    if classes[event.created_entity.name]~= nil then
-        local tab = data[event.created_entity.name]
-        table.insert(tab,classes[event.created_entity.name].onPlace(event.created_entity))
-        data[event.created_entity.name] = tab
-    end
-end
-
-local function entityRemoved(event)
-    if classes[event.entity.name]~= nil then
-        for k, v in ipairs(data[event.entity.name]) do
-            if v.entity==event.entity then
-                local tab = data[event.entity.name]
-                table.remove(tab,k)
-                classes[event.entity.name].onDestroy(v)
-                data[event.entity.name] = tab
-                break
-            end
-        end
-    end
-end
-
-local function onTick()
-	for k, v in pairs(classes) do
-		for q, i in pairs(data[k]) do
-			if i.entity.valid then
-				v.onTick(i,q)
+function dbg_clr(category)
+	for _, player in pairs(game.players) do
+		if player.gui.left.debug ~= nil then
+			if player.gui.left.debug[category] ~= nil then
+				player.gui.left.debug[category].destroy()
 			end
 		end
 	end
 end
 
+local classes = {}
 
-local function onLoad()
-    data = global.programmableControllers or {}
-    for k,v in pairs(classes) do
-        data[k]=data[k] or {}
-    end
-    for k,v in pairs(data["controller-cpu"]) do
-        classes["controller-cpu"].ResetCPU(nil,nil,v)
-    end
+function tablefind(tbl, el)
+	for k,v in pairs(tbl) do
+		if v == el then
+			return k
+		end
+	end
+	return nil
+end
+local function getArea(pos, offset, radius)
+	return {{pos.x-radius+offset.x, pos.y-radius+offset.y}, {pos.x+radius+offset.x, pos.y+radius+offset.y}}
+end
+local function ttostring(tab)
+	local res=""
+	if type(tab)=="table" then
+		res="{"
+		for k, v in pairs(tab) do
+			res=res..tostring(k).." = "..ttostring(v)..", "
+		end
+		res=res.."}"
+	else
+		res=tostring(tab)
+	end
+	return res
+end
+function mergeSignals(red, green)
+	local ret = {}
+	for k, s in ipairs(red) do
+		local stype = s.signal.type
+		local sname = s.signal.name
+		local count = s.count
+		ret[stype] = ret[stype] or {}
+		ret[stype][sname] = count
+	end
+	for k, s in ipairs(green) do
+		local stype = s.signal.type
+		local sname = s.signal.name
+		local count = s.count
+		ret[stype] = ret[stype] or {}
+		if ret[stype][sname] == nil then
+			ret[stype][sname] = count
+		else
+			ret[stype][sname] = ret[stype][sname] + count
+		end
+	end
+	return ret
+end
+function remap(entity, index, mode)
+	dbg_clr("GROUP")
+	dbg_clr("DEBUG")
+	local x = math.floor(entity.position.x)
+	local y = math.floor(entity.position.y)
+	local update = {}
+	if mode then
+		-- add entity to entity db (reassigning unused id)
+		index = 1
+		while global.ent[index] ~= nil do index = index + 1 end
+		global.ent[index] = entity
+		-- add entity to group map
+		local gid = 1
+		while global.grp[gid] ~= nil do gid = gid + 1 end
+		global.grp[gid] = {index}
+		global.rgrp[index] = gid
+		-- add entity index to entity map
+		global.map = global.map or {}
+		global.map[x] = global.map[x] or {}
+		global.map[x][y] = index
+		global.rmap[index] = {x, y}
+		-- add entity to update map
+		table.insert(update, index)
+	else
+		-- remove entity to entity db (avoid shifting entries)
+		global.ent[index]=nil
+		-- remove entity to group map
+		local gid = global.rgrp[index]
+		local gindex = tablefind(global.grp[gid], index)
+		global.grp[gid][gindex] = nil
+		if next(global.grp[gid]) == nil then global.grp[gid] = nil end
+		global.rgrp[index] = nil
+		-- remove entity index to entity map
+		global.map[x][y] = nil
+		global.rmap[index] = nil
+		if next(global.map[x]) == nil then global.map[x] = nil end
+	end
+	-- add adjacent entity to update map
+	for _, o in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
+		local ox = x + o[1]
+		local oy = y + o[2]
+		if global.map[ox] ~= nil and global.map[ox][oy] ~= nil then
+			local id = global.map[ox][oy]
+			if not tablefind(update, id) then 
+				table.insert(update, id)
+			end
+		end
+	end
+	-- set every entity of these groups to be updated
+	local buf = {}
+	for _, i in pairs(update) do
+		local g = global.rgrp[i]
+		if global.grp[g] ~= nil then
+			for __, k in pairs(global.grp[g]) do
+				table.insert(buf, k)
+			end
+			global.grp[g] = nil
+		end
+	end
+	-- merge or split groups
+	if mode then
+		local gid = 1
+		while global.grp[gid] ~= nil do gid = gid + 1 end
+		global.grp[gid] = buf
+		update = {index}
+		for _, i in pairs(global.grp[gid]) do
+			global.rgrp[i] = gid
+		end
+	else
+		for _, i in pairs(buf) do
+			global.rgrp[i] = 0
+		end
+		for k, v in pairs(update) do
+			if global.rgrp[v] == 0 then
+				local gid = 1
+				while global.grp[gid] ~= nil do gid = gid + 1 end
+				global.grp[gid] = global.grp[gid] or {}
+				local current = {global.rmap[v]}
+				while #current > 0 do
+					local sx = current[1][1]
+					local sy = current[1][2]
+					local li = global.map[sx][sy]
+					table.insert(global.grp[gid], li)
+					global.rgrp[li] = gid
+					for _, o in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
+						local ox = sx + o[1]
+						local oy = sy + o[2]
+						if global.map[ox] ~= nil and 
+								global.map[ox][oy] ~= nil and
+								global.rgrp[global.map[ox][oy]] == 0 then
+							table.insert(current, {ox, oy})
+							global.rgrp[global.map[ox][oy]] = gid
+						end
+					end
+					table.remove(current, 1)
+				end
+			end
+		end
+	end
+	--reorganize groups
+	local grp = {}
+	for _, i in pairs(update) do
+		local g = global.rgrp[i]
+		if grp[g] == nil then grp[g] = true end
+	end
+	for g, _ in pairs(grp) do
+		table.sort(global.grp[g], function(a, b)
+			local mema = classes[global.ent[a].name].on_load_mem ~= nil
+			local memb = classes[global.ent[b].name].on_load_mem
+			if mema and not memb then
+				return true
+			elseif not mema and memb then
+				return false
+			elseif global.rmap[a][2] < global.rmap[b][2] then
+				return true
+			elseif global.rmap[a][2] > global.rmap[b][2] then
+				return false
+			elseif global.rmap[a][1] < global.rmap[b][1] then
+				return true
+			else
+				return false
+			end
+		end)
+	end
+	return tablefind(global.ent, entity)
+end
+function peek(index, addr)
+	local lindex = math.floor(addr/16)+1
+	local laddr = addr%16+1
+	local lent = global.grp[global.rgrp[index]][lindex]
+	if memory[lent] == nil and global.ent[lent] ~= nil and classes[global.ent[lent].name].on_load_mem ~= nil then
+		memory[lent] = classes[global.ent[lent].name].on_load_mem(lent, global.ent[lent])
+	end
+	if memory[lent] ~= nil then
+		return memory[lent][laddr]
+	else
+		return {t = "virtual", s = "pci-00", c = 0}
+	end
+end
+function poke(index, addr, value)
+	local lindex = math.floor(addr/16)+1
+	local laddr = addr%16+1
+	local lent = global.grp[global.rgrp[index]][lindex]
+	if memory[lent] == nil and global.ent[lent] ~= nil and classes[global.ent[lent].name].on_load_mem ~= nil then
+		memory[lent] = classes[global.ent[lent].name].on_load_mem(lent, global.ent[lent])
+	end
+	if memory[lent] ~= nil then
+		memory[lent][laddr] = value
+	end
 end
 
-game.on_init(onLoad)
-game.on_load(onLoad)
-game.on_save(function()
-global.programmableControllers = data
-end)
+classes["controller-mem"]={
+	on_load_mem=function(index, entity)
+		local parameters = entity.get_control_behavior().parameters
+		local ret={}
+		for _, item in pairs(parameters.parameters) do
+			if item.signal.name == nil then
+				item.signal.type = "virtual"
+				item.signal.name = "pci-00"
+				item.count = 0
+			end
+			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
+		end
+		return ret
+	end, 
+	on_save_mem=function(index, entity, chunk)
+		for i, k in pairs(chunk) do
+			chunk[i]={signal={type=k.t, name=k.s}, count=k.c, index=i}
+		end
+		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
+	end, 
+}
+classes["controller-ext"]={}
+classes["controller-pow"]={
+	on_built_entity=function(index, entity)
+		entity.power_usage = 1000/60
+	end, 
+}
+classes["controller-con"]={
+	on_load_mem=function(index, entity)
+		local enabled = entity.get_control_behavior().enabled
+		local parameters = entity.get_control_behavior().parameters
+		local ret={}
+		if not enabled then
+			local rednet = {}
+			local grenet = {}
+			if entity.get_circuit_network(defines.wire_type.red) then
+				rednet = entity.get_circuit_network(defines.wire_type.red).signals 
+			end
+			if entity.get_circuit_network(defines.wire_type.green) then
+				local grenet = entity.get_circuit_network(defines.wire_type.green).signals
+			end
+			local net = mergeSignals(rednet, grenet)
+			for k, s in pairs(parameters.parameters) do
+				local stype = s.signal.type
+				local sname = s.signal.name
+				if sname ~= nil then
+					if net[stype] ~= nil and net[stype][sname] ~= nil then
+						parameters.parameters[k].count = net[stype][sname]
+					else
+						parameters.parameters[k].count = 0
+					end
+				end
+			end
+		end
+		for _, item in pairs(parameters.parameters) do
+			if item.signal.name == nil then
+				item.signal.type = "virtual"
+				item.signal.name = "pci-00"
+				item.count = 0
+			end
+			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
+		end
+		return ret
+	end, 
+	on_save_mem=function(index, entity, chunk)
+		for i, k in pairs(chunk) do
+			chunk[i]={signal={type=k.t, name=k.s}, count=k.c, index=i}
+		end
+		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
+	end, 
+}
+classes["controller-cpu"]={
+	on_gui_create=function(index, entity, player)
+		local gui = player.gui.left.add{type="frame", name="pci-cpu-"..index, direction="vertical", caption="CPU"}
+		gui.add{type="progressbar", name="cycles", size=100, value=0}
+	end, 
+	on_gui_destroy=function(index, entity, player)
+		player.gui.left["pci-cpu-"..index].destroy()
+	end, 
+	on_built_entity=function(index, entity)
+		entity.get_control_behavior().enabled=false
+		parameters = entity.get_control_behavior().parameters
+		parameters.parameters[1]={signal={type="virtual", name="pci-00"}, count=0, index=1}
+		parameters.parameters[2]={signal={type="virtual", name="pci-10"}, count=3, index=2}
+		parameters.parameters[3]={signal={type="virtual", name="pci-00"}, count=0, index=3}
+		entity.get_control_behavior().parameters=parameters
+	end, 
+	on_tick=function(index, entity, energy, memory)
+		local cycles = 0
+		local power = config.power
+		local grp = global.rgrp[index]
+		if entity.get_control_behavior().enabled and energy[grp] ~= nil and energy[grp][1] > power then
+			o = (tablefind(global.grp[global.rgrp[index]], index)-1)*16
+			pointer = peek(index, o+1).c
+			brk = false
+			for _=0, config.cpt-1, 1 do
+				cycles = cycles + 1
+				if energy[grp][1] < power then break end
+				i = peek(index, pointer)
+				pointer=pointer+1
+				if i ~= nil and pci[i.s] ~= nil then
+					pci[i.s](index, i.c)
+					energy[grp][1] = energy[grp][1] - power
+				end
+				if brk then break end
+			end
+			poke(index, o+1, {t="virtual", s="pci-10", c=pointer})
+			state = peek(index, o)
+			entity.get_control_behavior().enabled = state.s ~= "pci-0E" and state.s ~= "pci-0F"
+		end
+		if global.rgui[index] then
+			for _,pi in pairs(global.rgui[index]) do
+				local gui = game.players[pi].gui.left["pci-cpu-"..index]
+				gui.cycles.value = cycles/config.cpt
+			end
+		end
+	end,
+	on_load_mem=function(index, entity)
+		local parameters = entity.get_control_behavior().parameters
+		local enabled = entity.get_control_behavior().enabled
+		local ret={}
+		for _, item in pairs(parameters.parameters) do
+			if item.signal.name == nil then
+				item.signal.type = "virtual"
+				item.signal.name = "pci-00"
+				item.count = 0
+			end
+			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
+		end
+		return ret
+	end, 
+	on_save_mem=function(index, entity, chunk)
+		for i, k in pairs(chunk) do
+			chunk[i]={signal={type=k.t, name=k.s}, count=k.c, index=i}
+		end
+		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
+	end, 
+	on_removed_entity=function(index) end, 
+}
 
-game.on_event(defines.events.on_tick, onTick)
+local function on_built_entity(event)
+	local entity = event.created_entity
+	if classes[entity.name] ~= nil then
+		local index = remap(entity, nil, true)
+		if classes[entity.name].on_built_entity ~= nil then
+			classes[entity.name].on_built_entity(index, entity)
+		end
+	end
+end
+local function on_removed_entity(event)
+	local entity = event.entity
+	if classes[entity.name] ~= nil then
+		local index = tablefind(global.ent, entity)
+		if classes[entity.name].on_removed_entity ~= nil then
+			classes[entity.name].on_removed_entity(index)
+		end
+		remap(entity, index, false)
+	end
+end
 
-game.on_event(defines.events.on_built_entity, entityBuilt)
-game.on_event(defines.events.on_robot_built_entity, entityBuilt)
+local function on_tick(event)
+	energy = {}
+	memory = {}
+	-- get energy
+	for index, entity in pairs(global.ent) do
+		if entity.valid and entity.name == "controller-pow" then
+			local grp = global.rgrp[index]
+			energy[grp] = energy[grp] or {0,0}
+			energy[grp][1] = energy[grp][1] + entity.energy
+			energy[grp][2] = energy[grp][2] + 1
+		end
+	end
+	-- handle tick entity
+	for index, entity in pairs(global.ent) do
+		if entity.valid and classes[entity.name].on_tick ~= nil then
+			classes[entity.name].on_tick(index, entity, energy, memory)
+		end
+	end
+	--]]
+	-- save data
+	for index, chunk in pairs(memory) do
+		classes[global.ent[index].name].on_save_mem(index, global.ent[index], chunk)
+	end
+	--]]
+	-- set energy
+	for index, entity in pairs(global.ent) do
+		if entity.valid and entity.name == "controller-pow" then
+			local egrp = energy[global.rgrp[index]]
+			entity.energy = egrp[1]/egrp[2]
+		end
+	end
+	-- handle gui
+	for _, player in pairs(game.players) do
+		local pi = player.name
+		local entity = player.opened
+		if entity ~= nil and global.gui[pi] == nil then
+			local ei = tablefind(global.ent, entity)
+			if ei ~= nil then
+				global.gui[pi]={id=ei}
+				global.rgui[ei] = global.rgui[ei] or {}
+				table.insert(global.rgui[ei],pi)
+				if classes[entity.name].on_gui_create ~= nil then
+					classes[entity.name].on_gui_create(ei, entity, player)
+				end
+			end
+		elseif entity == nil and global.gui[pi] ~= nil then
+			local ei = global.gui[pi].id
+			local entity = global.ent[ei]
+			if classes[entity.name].on_gui_destroy ~= nil then
+				classes[entity.name].on_gui_destroy(ei, entity, player)
+			end
+			table.remove(global.rgui[ei],tablefind(global.rgui[ei], pi))
+			if #global.rgui[ei] == 0 then global.rgui[ei] = nil end
+			global.gui[pi] = nil
+		end
+	end
+end
+local function on_init()
+	global.ent  = global.ent  or {}
+	global.map  = global.map  or {}
+	global.rmap = global.rmap or {}
+	global.grp  = global.grp  or {}
+	global.rgrp = global.rgrp or {}
+	global.gui  = global.gui  or {}
+	global.rgui = global.rgui or {}
+end
+local function on_init()
+	game.write_file('logs/pci/debug.log', "start log\n", false)
+end
 
-game.on_event(defines.events.on_preplayer_mined_item, entityRemoved)
-game.on_event(defines.events.on_robot_pre_mined, entityRemoved)
-game.on_event(defines.events.on_entity_died, entityRemoved)
+
+script.on_init(on_init)
+script.on_load(on_load)
+script.on_configuration_changed(on_init)
+script.on_event(defines.events.on_tick, on_tick)
+script.on_event(defines.events.on_built_entity, on_built_entity)
+script.on_event(defines.events.on_robot_built_entity, on_built_entity)
+script.on_event(defines.events.on_preplayer_mined_item, on_removed_entity)
+script.on_event(defines.events.on_robot_pre_mined, on_removed_entity)
+script.on_event(defines.events.on_entity_died, on_removed_entity)

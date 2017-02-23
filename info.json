@@ -1,9 +1,10 @@
 {
-  "name": "ProgrammableControllers",
-  "version": "0.0.2",
+  "name": "programmable-controllers",
+  "version": "0.14.0",
   "title": "Programmable Controllers",
-  "author": "XCodersTeam",
+  "author": "YPetrermann",
   "homepage": "",
   "dependencies": ["base"],
+  "factorio_version": "0.14",
   "description": "Programmable circuit network controller"
 }
