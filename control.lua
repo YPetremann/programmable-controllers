@@ -14,45 +14,6 @@ require("instructions")
 require("util")
 prequire("interface")
 prequire("defines")
-function dbg_log(category, message)
-	if config.debug then
-		for _, player in pairs(game.players) do
-			if player.gui.left.debug == nil then
-				player.gui.left.add{type="flow", name="debug", direction="vertical"}
-			end
-			if player.gui.left.debug[category] == nil then
-				player.gui.left.debug.add{type="frame", name=category, direction="vertical", caption=category}
-				player.gui.left.debug[category].add{type="scroll-pane", name="log", direction="vertical", caption=category}
-				player.gui.left.debug[category].log.vertical_scroll_policy="auto"
-				player.gui.left.debug[category].log.horizontal_scroll_policy="never"
-				player.gui.left.debug[category].log.style.maximal_height=900
-			end
-			if player.gui.left.debug[category].log["end"] ~= nil then
-				player.gui.left.debug[category].log["end"].destroy()
-			end
-			n=tostring(#player.gui.left.debug[category].log.children_names+1)
-			player.gui.left.debug[category].log.add{type="label", name=n, direction="vertical", caption=message}
-			player.gui.left.debug[category].log[n].style.minimal_height=8
-			player.gui.left.debug[category].log[n].style.maximal_height=8
-			player.gui.left.debug[category].log[n].style.bottom_padding=0
-			player.gui.left.debug[category].log[n].style.top_padding=0
-			player.gui.left.debug[category].log.add{type="label", name="end", direction="vertical", caption=" "}
-			player.gui.left.debug[category].log["end"].style.minimal_height=5
-			player.gui.left.debug[category].log["end"].style.maximal_height=5
-			player.gui.left.debug[category].log[n].style.bottom_padding=0
-			player.gui.left.debug[category].log[n].style.top_padding=0
-		end
-	end
-end
-function dbg_clr(category)
-	for _, player in pairs(game.players) do
-		if player.gui.left.debug ~= nil then
-			if player.gui.left.debug[category] ~= nil then
-				player.gui.left.debug[category].destroy()
-			end
-		end
-	end
-end
 
 local classes = {}
 
@@ -63,22 +24,6 @@ function tablefind(tbl, el)
 		end
 	end
 	return nil
-end
-local function getArea(pos, offset, radius)
-	return {{pos.x-radius+offset.x, pos.y-radius+offset.y}, {pos.x+radius+offset.x, pos.y+radius+offset.y}}
-end
-local function ttostring(tab)
-	local res=""
-	if type(tab)=="table" then
-		res="{"
-		for k, v in pairs(tab) do
-			res=res..tostring(k).." = "..ttostring(v)..", "
-		end
-		res=res.."}"
-	else
-		res=tostring(tab)
-	end
-	return res
 end
 function mergeSignals(red, green)
 	local ret = {}
@@ -236,7 +181,7 @@ function peek(index, addr)
 	if memory[lent] ~= nil then
 		return memory[lent][laddr]
 	else
-		return {t = "virtual", s = "pci-00", c = 0}
+		return {signal={type = "virtual", name = "pci-00"}, count = 0, index = laddr}
 	end
 end
 function poke(index, addr, value)
@@ -257,22 +202,9 @@ function DEC_HEX(IN)
 end
 classes["controller-mem"]={
 	on_load_mem=function(index, entity)
-		local parameters = entity.get_control_behavior().parameters
-		local ret={}
-		for _, item in pairs(parameters.parameters) do
-			if item.signal.name == nil then
-				item.signal.type = "virtual"
-				item.signal.name = "pci-00"
-				item.count = 0
-			end
-			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
-		end
-		return ret
+		return entity.get_control_behavior().parameters.parameters
 	end, 
 	on_save_mem=function(index, entity, chunk)
-		for i, k in pairs(chunk) do
-			chunk[i]={signal={type=k.t, name=k.s}, count=k.c, index=i}
-		end
 		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
 	end, 
 }
@@ -317,12 +249,9 @@ classes["controller-con"]={
 			end
 			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
 		end
-		return ret
+		return entity.get_control_behavior().parameters.parameters
 	end, 
 	on_save_mem=function(index, entity, chunk)
-		for i, k in pairs(chunk) do
-			chunk[i]={signal={type=k.t, name=k.s}, count=k.c, index=i}
-		end
 		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
 	end, 
 }
@@ -374,22 +303,23 @@ classes["controller-cpu"]={
 		local grp = global.rgrp[index]
 		if entity.get_control_behavior().enabled and energy[grp] ~= nil and energy[grp][1] > power then
 			o = (tablefind(global.grp[global.rgrp[index]], index)-1)*16
-			pointer = peek(index, o+1).c
+			pointer = peek(index, o+1).count
 			brk = false
 			for _=0, config.cpt-1, 1 do
 				cycles = cycles + 1
 				if energy[grp][1] < power then break end
 				i = peek(index, pointer)
-				pointer=pointer+1
-				if i ~= nil and pci[i.s] ~= nil then
-					pci[i.s](index, i.c)
+				pointer = pointer+1
+				local inst = i.signal.name
+				if i ~= nil and pci[inst] ~= nil then
+					pci[inst](index, i.count)
 					energy[grp][1] = energy[grp][1] - power
 				end
 				if brk then break end
 			end
-			poke(index, o+1, {t="virtual", s="pci-10", c=pointer})
+			poke(index, o+1, {signal={type="virtual", name="pci-10"}, count=pointer, index=2})
 			state = peek(index, o)
-			entity.get_control_behavior().enabled = state.s ~= "pci-0E" and state.s ~= "pci-0F"
+			entity.get_control_behavior().enabled = state.signal.name ~= "pci-0E" and state.signal.name ~= "pci-0F"
 		end
 		if global.rgui[index] then
 			for _,pi in pairs(global.rgui[index]) do
@@ -399,24 +329,10 @@ classes["controller-cpu"]={
 		end
 	end,
 	on_load_mem=function(index, entity)
-		local parameters = entity.get_control_behavior().parameters
-		local enabled = entity.get_control_behavior().enabled
-		local ret={}
-		for _, item in pairs(parameters.parameters) do
-			if item.signal.name == nil then
-				item.signal.type = "virtual"
-				item.signal.name = "pci-00"
-				item.count = 0
-			end
-			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
-		end
-		return ret
+		return entity.get_control_behavior().parameters.parameters
 	end, 
 	on_save_mem=function(index, entity, chunk)
-		for i, k in pairs(chunk) do
-			chunk[i]={signal={type=k.t, name=k.s}, count=k.c, index=i}
-		end
-		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
+		entity.get_control_behavior().parameters = {parameters=chunk}
 	end, 
 	on_removed_entity=function(index) end, 
 }
@@ -459,10 +375,10 @@ local function on_tick(event)
 			classes[entity.name].on_tick(index, entity, energy, memory)
 		end
 	end
-	--]]
 	-- save data
 	for index, chunk in pairs(memory) do
-		classes[global.ent[index].name].on_save_mem(index, global.ent[index], chunk)
+		local entity = global.ent[index]
+		classes[entity.name].on_save_mem(index, entity, chunk)
 	end
 	--]]
 	-- set energy
@@ -507,8 +423,7 @@ local function on_init()
 	global.gui  = global.gui  or {}
 	global.rgui = global.rgui or {}
 end
-local function on_init()
-	game.write_file('logs/pci/debug.log', "start log\n", false)
+local function on_load()
 end
 
 
