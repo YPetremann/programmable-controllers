@@ -4,6 +4,7 @@ data:extend({
 		name = "controller-cpu",
 		icon = "__programmable-controllers__/graphics/icons/controller-cpu.png",
 		flags = {"placeable-neutral", "player-creation"},
+		fast_replaceable_group = "controller",
 		minable = {hardness = 0.2, mining_time = 0.5, result = "controller-cpu"},
 		max_health = 55,
 		corpse = "small-remnants",
@@ -143,7 +144,7 @@ data:extend({
 		icon = "__programmable-controllers__/graphics/icons/controller-cpu.png",
 		flags = {"goes-to-quickbar"},
 		subgroup = "pc-blocks",
-		order = "a[input]",
+		order = "a-b",
 		place_result = "controller-cpu",
 		stack_size = 50
 	},

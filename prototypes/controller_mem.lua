@@ -4,6 +4,7 @@ data:extend({
 		name = "controller-mem",
 		icon = "__programmable-controllers__/graphics/icons/controller-mem.png",
 		flags = {"placeable-neutral", "player-creation"},
+		fast_replaceable_group = "controller",
 		minable = {hardness = 0.2, mining_time = 0.5, result = "controller-mem"},
 		max_health = 55,
 		corpse = "small-remnants",
@@ -141,7 +142,7 @@ data:extend({
 		icon = "__programmable-controllers__/graphics/icons/controller-mem.png",
 		flags = {"goes-to-quickbar"},
 		subgroup = "pc-blocks",
-		order = "a[input]",
+		order = "a-c",
 		place_result = "controller-mem",
 		stack_size = 50
 	},

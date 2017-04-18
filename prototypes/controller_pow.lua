@@ -18,6 +18,7 @@ data:extend({
 		name = "controller-pow",
 		icon = "__programmable-controllers__/graphics/icons/controller-pow.png",
 		flags = {"placeable-neutral", "player-creation"},
+		fast_replaceable_group = "controller",
 		minable = {hardness = 0.2, mining_time = 0.5, result = "controller-pow"},
 		max_health = 55,
 		corpse = "small-remnants",
@@ -131,7 +132,7 @@ data:extend({
 		icon = "__programmable-controllers__/graphics/icons/controller-pow.png",
 		flags = {"goes-to-quickbar"},
 		subgroup = "pc-blocks",
-		order = "a[input]",
+		order = "a-a",
 		place_result = "controller-pow",
 		stack_size = 50
 	},
