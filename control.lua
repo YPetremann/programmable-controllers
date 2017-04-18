@@ -371,52 +371,6 @@ classes["controller-cpu"]={
 		for pi, player in pairs(global.rpid[eid]) do
 			local gui = player.gui.left["pci-cpu-"..eid]
 			gui.cycles.value = cycles/config.cpt
-			if false then
-				gui.mem.destroy()
-				gui.add{type="scroll-pane", name="mem", direction="vertical", caption=category}
-				gui.mem.vertical_scroll_policy="auto"
-				gui.mem.horizontal_scroll_policy="never"
-				gui.mem.style.maximal_height=500
-				local grp = global.grp[global.rgrp[eid]]
-				for k,v in pairs(grp) do
-					local label = gui.mem.add{type="label", caption="["..DEC_HEX(k).."] "..v.." "..global.ent[v].name, style="bold_label_style"}
-					label.style.minimal_height = 8
-					label.style.maximal_height = 8
-					label.style.bottom_padding = 0
-					label.style.top_padding = 0
-					if global.mem[v] ~= nil then
-						local	nd = gui.mem.add{type="label", caption=" "}
-						nd.style.minimal_height=5
-						nd.style.maximal_height=5
-						nd.style.bottom_padding=0
-						nd.style.top_padding=0
-						local mem = gui.mem.add{type="table", colspan=8}
-						mem.style.horizontal_spacing=2
-						mem.style.vertical_spacing=2
-						for i,c in pairs(global.mem[v]) do
-							local sprt = ""
-							if c.signal.name == nil then
-							elseif c.signal.type == "virtual" then
-								sprt = "virtual-signal/"..c.signal.name
-							elseif c.signal.type == "item" then
-								sprt = "item/"..c.signal.name
-							end
-							mem.add{type="sprite-button", sprite=sprt, style="slot_button_style"}
-							local elem = mem.add{type="label", caption=toscnot(c.count)}
-							elem.style.left_padding = 0
-							elem.style.right_padding = 0
-							elem.style.minimal_width = 34
-							elem.style.maximal_width = 34
-							elem.style.font="default-small-bold"
-						end
-					end
-				end
-				local	nd = gui.mem.add{type="label", caption=" "}
-				nd.style.minimal_height=5
-				nd.style.maximal_height=5
-				nd.style.bottom_padding=0
-				nd.style.top_padding=0
-			end
 		end
 	end,
 	on_load_mem=function(eid, entity)
@@ -500,17 +454,18 @@ local function on_tick(event)
 			global.rgid[pid]=nil
 		end
 	end
-	-- save data
+	-- save data and set energy
 	for eid, chunk in pairs(global.mem) do
-		if global.mcw[eid] then
-			local entity = global.ent[eid]
+		local entity = global.ent[eid]
+		if entity.name == "controller-con" or global.mcw[eid] then
 			classes[entity.name].on_save_mem(eid, entity, chunk)
 		end
 	end
 	-- set energy
 	for eid, entity in pairs(global.ent) do
-		if entity.valid and (entity.name == "controller-con" or global.mcw[eid]) then
-			local egrp = energy[global.rgrp[eid]] or {0,0}
+		if entity.name == "controller-pow" then
+			local grp = global.rgrp[eid]
+			local egrp = energy[grp] or {0,0}
 			entity.energy = egrp[1]/egrp[2]
 		end
 	end
