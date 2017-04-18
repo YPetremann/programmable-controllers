@@ -532,19 +532,27 @@ pci["pci-4B"] = function(i, a) -- 4B xrn &A : bitwise nxor &A by %R
 end
 
 pci["pci-4C"] = function(i, a) -- 4C rnd @A : random in @A
-	poke(i, a, math.random(-2147483648,2147483647))
+	m = peek(i, a)
+	m.count = math.random(-2147483648,2147483647)
+	poke(i, a, m)
 end
 pci["pci-4D"] = function(i, a) -- 4D rnd &A : random in &A
 	p = peek(i, a).count
-	poke(i, p, math.random(-2147483648,2147483647))
+	m = peek(i, p)
+	m.count = math.random(-2147483648,2147483647)
+	poke(i, p, m)
 end
 pci["pci-4E"] = function(i, a) -- 4E rnd @A : random in @A in %R range
 	r = peek(i, o+2).count
-	poke(i, a, math.random(0,r))
+	m = peek(i, a)
+	m.count = math.random(0,r)
+	poke(i, a, m)
 end
 pci["pci-4F"] = function(i, a) -- 4F rnd &A : random in &A in %R range
 	r = peek(i, o+2).count
 	p = peek(i, a).count
-	poke(i, p, math.random(0,r))
+	m = peek(i, p)
+	m.count = math.random(0,r)
+	poke(i, p, m)
 end
 
