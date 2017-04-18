@@ -16,22 +16,27 @@ end
 pci["pci-01"] = function(i, a) -- 01 val #A : copy #A to %R
 	r = peek(i, o+2)
 	r.count = a
+	if r.count > 0 then r.signal.name = "pci-00" end
 	poke(i, o+2, r)
 end
 pci["pci-02"] = function(i, a) -- 02 get &A : copy @A to %R
-	poke(i, o+2, peek(i, a))
+	m = peek(i, a)
+	poke(i, o+2, m)
 end
 pci["pci-03"] = function(i, a) -- 03 get @A : copy &A to %R
-	p = peek(i, a).count
-	poke(i, o+2, peek(i, p))
+	p = peek(i, a)
+	m = peek(i, p.count)
+	poke(i, o+2, m)
 end
 
 pci["pci-04"] = function(i, a) -- 04 set &A : copy %R to &A
-	poke(i, a, peek(i, o+2))
+	r = peek(i, o+2)
+	poke(i, a, r)
 end
 pci["pci-05"] = function(i, a) -- 05 set @A : copy %R to @A
-	p = peek(i, a).count
-	poke(i, p, peek(i, o+2))
+	p = peek(i, a)
+	r = peek(i, o+2)
+	poke(i, p.count, r)
 end
 pci["pci-06"] = function(i, a) -- 06 swp @A : swap %R with @A
 	m = peek(i, a)
@@ -40,10 +45,10 @@ pci["pci-06"] = function(i, a) -- 06 swp @A : swap %R with @A
 	poke(i, o+2, m)
 end
 pci["pci-07"] = function(i, a) -- 07 swp &A : swap %R with &A
-	p = peek(i, a).count
-	m = peek(i, p)
+	p = peek(i, a)
+	m = peek(i, p.count)
 	r = peek(i, o+2)
-	poke(i, p, r)
+	poke(i, p.count, r)
 	poke(i, o+2, m)
 end
 
@@ -263,14 +268,14 @@ pci["pci-23"] = function(i, a) -- 23 sub &A : sub %R to &A
 end
 
 pci["pci-24"] = function(i, a) -- 24 inc @A : increase @A by 1
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) + 1
+	m = peek(i, a)
+	m.count = sign(unsign(m.count) + 1)
 	poke(i, a, m)
 end
 pci["pci-25"] = function(i, a) -- 25 inc &A : increase &A by 1
 	p = peek(i, a).count
 	m = peek(i, p)
-	m.count = unsign(m.count) + 1
+	m.count = sign(unsign(m.count) + 1)
 	poke(i, p, m)
 end
 pci["pci-26"] = function(i, a) -- 26 dec @A : decrease @A by 1
@@ -286,9 +291,9 @@ pci["pci-27"] = function(i, a) -- 27 dec &A : decrease &A by 1
 end
 
 pci["pci-28"] = function(i, a) -- 40 mul @A : multiply by %R in @A
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) * r
+	r = peek(i, o+2)
+	m = peek(i, a)
+	m.count = sign(m.count * r.count)
 	poke(i, a, m)
 end
 pci["pci-29"] = function(i, a) -- 41 mul &A : multiply by %R in &A
@@ -313,22 +318,22 @@ pci["pci-2B"] = function(i, a) -- 43 dvf &A : floor division &A by %R
 end
 
 pci["pci-2C"] = function(i, a) -- 44 dvc @A : ceil division @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = math.ceil(m / r)
+	r = peek(i, o+2)
+	m = peek(i, a)
+	m.count = sign(math.ceil(m.count / r.count))
 	poke(i, a, m)
 end
 pci["pci-2D"] = function(i, a) -- 45 dvc &A : ceil division &A by %R
 	r = peek(i, o+2).count
 	p = peek(i, a).count
 	m = peek(i, p)
-	m.count = math.counteil(m / r)
+	m.count = sign(math.ceil(unsign(m.count) / unsign(r)))
 	poke(i, p, m)
 end
 pci["pci-2E"] = function(i, a) -- 46 mod @A : modulo @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) % r
+	r = peek(i, o+2)
+	m = peek(i, a)
+	m.count = sign(unsign(m.count) % unsign(r.count))
 	poke(i, a, m)
 end
 pci["pci-2F"] = function(i, a) -- 47 mod &A : modulo &A by %R
