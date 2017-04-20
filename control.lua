@@ -284,23 +284,19 @@ classes["controller-con"]={
 		local parameters = entity.get_control_behavior().parameters
 		local ret={}
 		if not enabled then
-			local rednet = {}
-			local grenet = {}
-			if entity.get_circuit_network(defines.wire_type.red) then
-				rednet = entity.get_circuit_network(defines.wire_type.red).signals 
-			end
-			if entity.get_circuit_network(defines.wire_type.green) then
-				local grenet = entity.get_circuit_network(defines.wire_type.green).signals
-			end
+			local rednet = entity.get_circuit_network(defines.wire_type.red)
+			local grenet = entity.get_circuit_network(defines.wire_type.green)
+			rednet = rednet and rednet.signals or {}
+			grenet = grenet and grenet.signals or {}
 			local net = mergeSignals(rednet, grenet)
 			for k, s in pairs(parameters.parameters) do
 				local stype = s.signal.type
 				local sname = s.signal.name
 				if sname ~= nil then
 					if net[stype] ~= nil and net[stype][sname] ~= nil then
-						parameters.parameters[k].count = net[stype][sname]
+						s.count = net[stype][sname]
 					else
-						parameters.parameters[k].count = 0
+						s.count = 0
 					end
 				end
 			end
@@ -313,7 +309,7 @@ classes["controller-con"]={
 			end
 			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
 		end
-		return entity.get_control_behavior().parameters.parameters
+		return parameters.parameters
 	end, 
 	on_save_mem=function(index, entity, chunk)
 		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
