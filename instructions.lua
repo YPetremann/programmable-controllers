@@ -11,583 +11,616 @@ function DEC_HEX(IN)
 	return OUT
 end
 local b=bit32
-pci["pci-00"] = function(i, a) -- 00 nop -- : do nothing
+pci["pci-00"] = function(G, A) -- 00 NOP -- : do nothing
 end
-pci["pci-01"] = function(i, a) -- 01 val #A : copy #A to %R
-	r = peek(i, o+2)
-	r.count = a
-	if r.count > 0 then r.signal.name = "pci-00" end
-	poke(i, o+2, r)
+pci["pci-01"] = function(G, A) -- 01 VAL# A : copy #A to %R
+	R = peek(G, register)
+	R.count = A
+	if R.signal.name == "" then
+		R.signal.type = "virtual"
+		R.signal.name = "pci-00"
+	end
+	poke(G, register, R)
 end
-pci["pci-02"] = function(i, a) -- 02 get &A : copy @A to %R
-	r = peek(i, o+2)
-	m = peek(i, a)
-	r.signal.type = m.signal.type
-	r.signal.name = m.signal.name
-	r.count       = m.count
-	poke(i, o+2, r)
+pci["pci-02"] = function(G, A) -- 02 GET@ A : copy @A to %R
+	R = peek(G, register)
+	C = peek(G, A)
+	R.signal.type = C.signal.type
+	R.signal.name = C.signal.name
+	R.count       = C.count
+	poke(G, register, R)
 end
-pci["pci-03"] = function(i, a) -- 03 get @A : copy &A to %R
-	p = peek(i, a)
-	r = peek(i, o+2)
-	m = peek(i, p.count)
-	r.signal.type = m.signal.type
-	r.signal.name = m.signal.name
-	r.count       = m.count
-	poke(i, o+2, r)
+pci["pci-03"] = function(G, A) -- 03 GET& A : copy &A to %R
+	R = peek(G, register)
+	P = peek(G, A).count
+	C = peek(G, P)
+	R.signal.type = C.signal.type
+	R.signal.name = C.signal.name
+	R.count       = C.count
+	poke(G, register, R)
 end
 
-pci["pci-04"] = function(i, a) -- 04 set &A : copy %R to &A
-	r = peek(i, o+2)
-	poke(i, a, r)
+pci["pci-04"] = function(G, A) -- 04 SET@ A : copy %R to @A
+	R = peek(G, register)
+	C = peek(G, A)
+	C.signal.type = R.signal.type
+	C.signal.name = R.signal.name
+	C.count       = R.count
+	poke(G, A, C)
 end
-pci["pci-05"] = function(i, a) -- 05 set @A : copy %R to @A
-	p = peek(i, a)
-	r = peek(i, o+2)
-	poke(i, p.count, r)
+pci["pci-05"] = function(G, A) -- 05 SET& A : copy %R to &A
+	R = peek(G, register)
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.signal.type = R.signal.type
+	C.signal.name = R.signal.name
+	C.count       = R.count
+	poke(G, P, C)
 end
-pci["pci-06"] = function(i, a) -- 06 swp @A : swap %R with @A
-	m = peek(i, a)
-	r = peek(i, o+2)
-	poke(i, a, r)
-	poke(i, o+2, m)
+pci["pci-06"] = function(G, A) -- 06 swp @A : swap %R with @A
+	R = peek(G, register)
+	C = peek(G, A)
+	poke(G, A, R)
+	poke(G, register, C)
 end
-pci["pci-07"] = function(i, a) -- 07 swp &A : swap %R with &A
-	p = peek(i, a)
-	m = peek(i, p.count)
-	r = peek(i, o+2)
-	poke(i, p.count, r)
-	poke(i, o+2, m)
+pci["pci-07"] = function(G, A) -- 07 swp &A : swap %R with &A
+	R = peek(G, register)
+	P = peek(G, A).count
+	C = peek(G, P)
+	poke(G, P, R)
+	poke(G, register, C)
 end
 
-pci["pci-08"] = function(i, a) -- 08 slp #A : wait #A processor cycles
-	s = peek(i, o)
-	if s.signal.name ~= "pci-08" then
-		s = {signal= {type= "virtual", name= "pci-08"}, count= a, index= 1}
+pci["pci-08"] = function(G, A) -- 08 slp #A : wait #A processor cycles
+	S = peek(G, control)
+	if S.signal.name ~= "pci-08" then
+		S.signal.type = "virtual"
+		S.signal.name = "pci-08"
+		S.count = A
 	end
-	if s.count > 0 then
+	if S.count > 0 then
 		pointer = pointer - 1
-		s.count = s.count - 1
+		S.count = S.count - 1
 	else
-		s = {signal= {type= "virtual", name= "pci-00"}, count= 1, index= 1}
+		S.signal.type = "virtual"
+		S.signal.name = "pci-00"
+		S.count = 1
 	end
-	poke(i, o, s)
+	poke(G, control, S)
 end
-pci["pci-09"] = function(i, a) -- 09 slp @A : wait @A processor cycles
-	p = peek(i, a).count
-	s = peek(i, o)
-	if s.signal.name ~= "pci-08" then
-		s = {signal= {type= "virtual", name= "pci-08"}, count= p, index= 1}
+pci["pci-09"] = function(G, A) -- 09 slp @A : wait @A processor cycles
+	P = peek(G, A).count
+	S = peek(G, control)
+	if S.signal.name ~= "pci-08" then
+		S.signal.type = "virtual"
+		S.signal.name = "pci-08"
+		S.count = P
 	end
-	if s.count > 0 then
+	if S.count > 0 then
 		pointer = pointer - 1
-		s.count = s.count - 1
+		S.count = S.count - 1
 	else
-		s = {signal= {type= "virtual", name= "pci-00"}, count= 1, index= 1}
+		S.signal.type = "virtual"
+		S.signal.name = "pci-00"
+		S.count = 1
 	end
-	poke(i, o, s)
+	poke(G, control, S)
 end
-pci["pci-0A"] = function(i, a) -- 0A yld #A : wait #A game tick
-	s = peek(i, o)
-	if s.signal.name ~= "pci-0A" then
-		s = {signal= {type= "virtual", name= "pci-0A"}, count= a, index= 1}
+pci["pci-0A"] = function(G, A) -- 0A yld #A : wait #A game tick
+	S = peek(G, control)
+	if S.signal.name ~= "pci-0A" then
+		S.signal.type = "virtual"
+		S.signal.name = "pci-0A"
+		S.count = A
 	end
-	if s.count > 1 then
+	if S.count > 1 then
 		pointer = pointer - 1
-		s.count = s.count - 1
+		S.count = S.count - 1
+		brk = true
+	elseif S.count == 1 then
+		S.signal.type = "virtual"
+		S.signal.name = "pci-00"
+		S.count = 1
+		brk = true
+	else
+		S.signal.type = "virtual"
+		S.signal.name = "pci-00"
+		S.count = 1
+	end
+	poke(G, control, S)
+end
+pci["pci-0B"] = function(G, A) -- 0B yld @A : wait @A game tick
+	P = peek(G, A).count
+	S = peek(G, control)
+	if S.signal.name ~= "pci-0A" then
+		S.signal.type = "virtual"
+		S.signal.name = "pci-0A"
+		S.count = P
+	end
+	if S.count > 1 then
+		pointer = pointer - 1
+		S.count = S.count - 1
 		brk = true
 	elseif s.count == 1 then
-		s = {signal= {type= "virtual", name= "pci-00"}, count= 1, index= 1}
+		S.signal.type = "virtual"
+		S.signal.name = "pci-00"
+		S.count = 1
 		brk = true
 	else
-		s = {signal= {type= "virtual", name= "pci-00"}, count= 1, index= 1}
+		S.signal.type = "virtual"
+		S.signal.name = "pci-00"
+		S.count = 1
 	end
-	poke(i, o, s)
-end
-pci["pci-0B"] = function(i, a) -- 0B yld @A : wait @A game tick
-	p = peek(i, a).count
-	s = peek(i, o)
-	if s.signal.name ~= "pci-0A" then
-		s = {signal= {type= "virtual", name= "pci-0A"}, count= p, index= 1}
-	end
-	if s.count > 1 then
-		pointer = pointer - 1
-		s.count = s.count - 1
-		brk = true
-	elseif s.count == 1 then
-		s = {signal= {type= "virtual", name= "pci-00"}, count= 1, index= 1}
-		brk = true
-	else
-		s = {signal= {type= "virtual", name= "pci-00"}, count= 1, index= 1}
-	end
-	poke(i, o, s)
+	poke(G, control, S)
 end
 
-pci["pci-0C"] = function(i, a) -- 0C int @A : wait for modification on @A
-	s = peek(i, o)
-	r = peek(i, o+2)
-	c = peek(i, a)
-	if m.signal.name == "pci-0C" then
-		s = m
+pci["pci-0C"] = function(G, A) -- 0C int @A : wait for modification on @A
+	s = peek(G, origin)
+	R = register
+	c = peek(G, A)
+	if C.signal.name == "pci-0C" then
+		s = C
 		pointer = pointer - 1
-		poke(i, o, s)
-	elseif s.signal.type ~= m.signal.type or s.signal.name ~= m.signal.name or s.count ~= m.count then
-		pointer = pointer - 1
-	end
-end
-pci["pci-0D"] = function(i, a) -- 0D int &A : wait for modification on &A 
-	s = peek(i, o)
-	r = peek(i, o+2)
-	p = peek(i, a).count
-	c = peek(i, p)
-	if m.signal.name == "pci-0C" then
-		s = m
-		pointer = pointer - 1
-		poke(i, o, s)
-	elseif s.signal.type ~= m.signal.type or s.signal.name ~= m.signal.name or s.count ~= m.count then
+		poke(G, origin, s)
+	elseif s.signal.type ~= C.signal.type or s.signal.name ~= C.signal.name or s.count ~= C.count then
 		pointer = pointer - 1
 	end
 end
-pci["pci-0E"] = function(i, a) -- 0E hlt #A : halt with code #A
-	poke(i, o, {signal= {type= "virtual", name= "pci-0E"}, count= a, index= 1})
+pci["pci-0D"] = function(G, A) -- 0D int &A : wait for modification on &A 
+	s = peek(G, origin)
+	R = register
+	P = peek(G, A).count
+	c = peek(G, P)
+	if C.signal.name == "pci-0C" then
+		s = C
+		pointer = pointer - 1
+		poke(G, origin, s)
+	elseif s.signal.type ~= C.signal.type or s.signal.name ~= C.signal.name or s.count ~= C.count then
+		pointer = pointer - 1
+	end
+end
+pci["pci-0E"] = function(G, A) -- 0E hlt #A : halt with code #A
+	poke(G, origin, {signal= {type= "virtual", name= "pci-0E"}, count= A, index= 1})
 	brk = true
 end
-pci["pci-0F"] = function(i, a) -- 0F hlt @A : halt with code @A
-	m = peek(i, a).count
-	poke(i, o, {signal= {type= "virtual", name= "pci-0E"}, count= m, index= 1})
+pci["pci-0F"] = function(G, A) -- 0F hlt @A : halt with code @A
+	C = peek(G, A).count
+	poke(G, origin, {signal= {type= "virtual", name= "pci-0E"}, count= C, index= 1})
 	brk = true
 end
 
-pci["pci-10"] = function(i, a) -- 10 jmp @A : jump to @A
-	pointer = a
-	poke(i, o+1, {signal= {type= "virtual", name= "pci-10"}, count= a, index= 2})
+pci["pci-10"] = function(G, A) -- 10 jmp @A : jump to @A
+	pointer = A
+	poke(G, origin+1, {signal= {type= "virtual", name= "pci-10"}, count= A, index= 2})
 end
-pci["pci-11"] = function(i, a) -- 11 jmp &A : jump to &A
-	p = peek(i, a).count
-	pointer = p
-	poke(i, o+1, {signal= {type= "virtual", name= "pci-10"}, count= p, index= 2})
+pci["pci-11"] = function(G, A) -- 11 jmp &A : jump to &A
+	P = peek(G, A).count
+	pointer = P
+	poke(G, origin+1, {signal= {type= "virtual", name= "pci-10"}, count= P, index= 2})
 end
-pci["pci-12"] = function(i, a) -- 12 rjp #A : jump relative by #A
-	p = peek(i, o+1).count
-	pointer = p+a
-	poke(i, o+1, {signal= {type= "virtual", name= "pci-10"}, count= p+a, index= 2})
+pci["pci-12"] = function(G, A) -- 12 rjp #A : jump relative by #A
+	P = peek(G, origin+1).count
+	pointer = P+A
+	poke(G, origin+1, {signal= {type= "virtual", name= "pci-10"}, count= P+A, index= 2})
 end
-pci["pci-13"] = function(i, a) -- 13 rjp @A : jump relative by @A
-	p = peek(i, o+1).count
-	m = peek(i, a).count
-	pointer = p+m
-	poke(i, o+1, {signal= {type= "virtual", name= "pci-10"}, count= p+m, index= 2})
-end
-
-pci["pci-14"] = function(i, a) -- 14 seq #A : skip if %R == #A
-	if peek(i, o+2).count == a then
-		pointer = pointer + 1
-	end
-end
-pci["pci-15"] = function(i, a) -- 15 seq @A : skip if %R == @A
-	p = peek(i, a).count
-	if peek(i, o+2).count == p then
-		pointer = pointer + 1
-	end
-end
-pci["pci-16"] = function(i, a) -- 1A snq #A : skip if %R != #A
-	if peek(i, o+2).count ~= a then
-		pointer = pointer + 1
-	end
-end
-pci["pci-17"] = function(i, a) -- 1B snq @A : skip if %R != @A
-	p = peek(i, a).count
-	if peek(i, o+2).count ~=p then
-		pointer = pointer + 1
-	end
+pci["pci-13"] = function(G, A) -- 13 rjp @A : jump relative by @A
+	P = peek(G, origin+1).count
+	C = peek(G, A).count
+	pointer = P+C
+	poke(G, origin+1, {signal= {type= "virtual", name= "pci-10"}, count= P+C, index= 2})
 end
 
-pci["pci-18"] = function(i, a) -- 16 slt #A : skip if %R < #A
-	if peek(i, o+2).count < a then
+pci["pci-14"] = function(G, A) -- 14 seq #A : skip if %R == #A
+	if register.count == A then
 		pointer = pointer + 1
 	end
 end
-pci["pci-19"] = function(i, a) -- 17 slt @A : skip if %R < @A
-	p = peek(i, a).count
-	if peek(i, o+2).count < p then
+pci["pci-15"] = function(G, A) -- 15 seq @A : skip if %R == @A
+	P = peek(G, A).count
+	if register.count == P then
 		pointer = pointer + 1
 	end
 end
-pci["pci-1A"] = function(i, a) -- 18 sgt #A : skip if %R > #A
-	if peek(i, o+2).count > a then
+pci["pci-16"] = function(G, A) -- 1A snq #A : skip if %R != #A
+	if register.count ~= A then
 		pointer = pointer + 1
 	end
 end
-pci["pci-1B"] = function(i, a) -- 19 sgt @A : skip if %R > @A
-	p = peek(i, a).count
-	if peek(i, o+2).count > p then
+pci["pci-17"] = function(G, A) -- 17 snq @A : skip if %R != @A
+	P = peek(G, A).count
+	if register.count ~=P then
 		pointer = pointer + 1
 	end
 end
 
-pci["pci-1C"] = function(i, a) -- 1C slq #A : skip if %R <= #A
-	if peek(i, o+2).count <= peek(i, a).count then
+pci["pci-18"] = function(G, A) -- 16 slt #A : skip if %R < #A
+	if register.count < A then
+		pointer = pointer + 1
+		poke(G, origin+1, {signal= {type= "virtual", name= "pci-10"}, count= pointer, index= 2})
+	end
+end
+pci["pci-19"] = function(G, A) -- 17 slt @A : skip if %R < @A
+	P = peek(G, A).count
+	if register.count < P then
 		pointer = pointer + 1
 	end
 end
-pci["pci-1D"] = function(i, a) -- 1D slq @A : skip if %R <= @A
-	p = peek(i, a).count
-	if peek(i, o+2).count <= peek(i, p).count then
+pci["pci-1A"] = function(G, A) -- 1A sgt #A : skip if %R > #A
+	if register.count > A then
 		pointer = pointer + 1
+		poke(G, origin+1, {signal= {type= "virtual", name= "pci-10"}, count= pointer, index= 2})
 	end
 end
-pci["pci-1E"] = function(i, a) -- 1E sgq #A : skip if %R >= #A
-	if peek(i, o+2).count >= peek(i, a).count then
-		pointer = pointer + 1
-	end
-end
-pci["pci-1F"] = function(i, a) -- 1F sgq @A : skip if %R >= @A
-	p = peek(i, a).count
-	if peek(i, o+2).count >= peek(i, p).count then
+pci["pci-1B"] = function(G, A) -- 19 sgt @A : skip if %R > @A
+	P = peek(G, A).count
+	if register.count > P then
 		pointer = pointer + 1
 	end
 end
 
-pci["pci-20"] = function(i, a) -- 20 add @A : add %R to @A
-	r = peek(i, o+2)
-	m = peek(i, a)
-	m.count = sign(unsign(m.count) + unsign(r.count))
-	poke(i, a, m)
+pci["pci-1C"] = function(G, A) -- 1C slq #A : skip if %R <= #A
+	if register.count <= peek(G, A).count then
+		pointer = pointer + 1
+	end
 end
-pci["pci-21"] = function(i, a) -- 21 add &A : add %R to &A
-	r = peek(i, o+2)
-	p = peek(i, a)
-	m = peek(i, p.count)
-	m.count = unsign(m.count) + r.count
-	poke(i, p, m)
+pci["pci-1D"] = function(G, A) -- 1D slq @A : skip if %R <= @A
+	P = peek(G, A).count
+	if register.count <= peek(G, P).count then
+		pointer = pointer + 1
+	end
 end
-pci["pci-22"] = function(i, a) -- 20 add @A : add %R to @A
-	r = peek(i, o+2).count
-	m = peek(i, a)
-	m.count = sign(unsign(m.count) + unsign(r))
-	poke(i, a, m)
+pci["pci-1E"] = function(G, A) -- 1E sgq #A : skip if %R >= #A
+	if register.count >= peek(G, A).count then
+		pointer = pointer + 1
+	end
 end
-pci["pci-23"] = function(i, a) -- 21 add &A : add %R to &A
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = unsign(m.count) + r
-	poke(i, p, m)
+pci["pci-1F"] = function(G, A) -- 1F sgq @A : skip if %R >= @A
+	P = peek(G, A).count
+	if register.count >= peek(G, P).count then
+		pointer = pointer + 1
+	end
 end
 
-pci["pci-22"] = function(i, a) -- 22 sub @A : sub @A to %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) - r
-	poke(i, a, m)
+pci["pci-20"] = function(G, A) -- 20 add @A : add %R to @A
+	R = register
+	C = peek(G, A)
+	C.count = sign(unsign(C.count) + unsign(R.count))
+	poke(G, A, C)
 end
-pci["pci-23"] = function(i, a) -- 23 sub &A : sub &A to %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = unsign(m.count) + r
-	poke(i, p, m)
+pci["pci-21"] = function(G, A) -- 21 add &A : add %R to &A
+	R = register
+	P = peek(G, A)
+	C = peek(G, P.count)
+	C.count = unsign(C.count) + R.count
+	poke(G, P, C)
 end
-pci["pci-22"] = function(i, a) -- 22 sub @A : sub @A to %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) - r
-	poke(i, a, m)
+pci["pci-22"] = function(G, A) -- 20 add @A : add %R to @A
+	R = register.count
+	C = peek(G, A)
+	C.count = sign(unsign(C.count) + unsign(R))
+	poke(G, A, C)
 end
-pci["pci-23"] = function(i, a) -- 23 sub &A : sub &A to %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = unsign(m.count) + r
-	poke(i, p, m)
-end
-
-pci["pci-24"] = function(i, a) -- 24 inc @A : increase @A by 1
-	m = peek(i, a)
-	m.count = sign(unsign(m.count) + 1)
-	poke(i, a, m)
-end
-pci["pci-25"] = function(i, a) -- 25 inc &A : increase &A by 1
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = sign(unsign(m.count) + 1)
-	poke(i, p, m)
-end
-pci["pci-26"] = function(i, a) -- 26 dec @A : decrease @A by 1
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) - 1
-	poke(i, a, m)
-end
-pci["pci-27"] = function(i, a) -- 27 dec &A : decrease &A by 1
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = unsign(m.count) - 1
-	poke(i, p, m)
+pci["pci-23"] = function(G, A) -- 21 add &A : add %R to &A
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = unsign(C.count) + R
+	poke(G, P, C)
 end
 
-pci["pci-28"] = function(i, a) -- 40 mul @A : multiply by %R in @A
-	r = peek(i, o+2)
-	m = peek(i, a)
-	m.count = sign(m.count * r.count)
-	poke(i, a, m)
+pci["pci-22"] = function(G, A) -- 22 sub @A : sub @A to %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = unsign(C.count) - R
+	poke(G, A, C)
 end
-pci["pci-29"] = function(i, a) -- 41 mul &A : multiply by %R in &A
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = unsign(m.count) * r
-	poke(i, p, m)
+pci["pci-23"] = function(G, A) -- 23 sub &A : sub &A to %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = unsign(C.count) + R
+	poke(G, P, C)
 end
-pci["pci-2A"] = function(i, a) -- 42 dvf @A : floor division @A by %R
-	r = peek(i, o+2).count
-	m = peek(i, a)
-	m.count = math.floor(unsign(m.count) / r)
-	poke(i, a, m)
+pci["pci-22"] = function(G, A) -- 22 sub @A : sub @A to %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = unsign(C.count) - R
+	poke(G, A, C)
 end
-pci["pci-2B"] = function(i, a) -- 43 dvf &A : floor division &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = math.floor(m / r)
-	poke(i, p, m)
-end
-
-pci["pci-2C"] = function(i, a) -- 44 dvc @A : ceil division @A by %R
-	r = peek(i, o+2)
-	m = peek(i, a)
-	m.count = sign(math.ceil(m.count / r.count))
-	poke(i, a, m)
-end
-pci["pci-2D"] = function(i, a) -- 45 dvc &A : ceil division &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = sign(math.ceil(unsign(m.count) / unsign(r)))
-	poke(i, p, m)
-end
-pci["pci-2E"] = function(i, a) -- 46 mod @A : modulo @A by %R
-	r = peek(i, o+2)
-	m = peek(i, a)
-	m.count = sign(unsign(m.count) % unsign(r.count))
-	poke(i, a, m)
-end
-pci["pci-2F"] = function(i, a) -- 47 mod &A : modulo &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = unsign(m.count) % r
-	poke(i, p, m)
+pci["pci-23"] = function(G, A) -- 23 sub &A : sub &A to %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = unsign(C.count) + R
+	poke(G, P, C)
 end
 
-pci["pci-30"] = function(i, a) -- 2C neg @A : negate @A
-	m = peek(i, a)
-	m.count = -unsign(m.count)
-	poke(i, a, m)
+pci["pci-24"] = function(G, A) -- 24 inc @A : increase @A by 1
+	C = peek(G, A)
+	C.count = sign(unsign(C.count) + 1)
+	poke(G, A, C)
 end
-pci["pci-31"] = function(i, a) -- 2D neg &A : negate &A
-	p = peek(i, a)
-	m = peek(i, p.count)
-	m.count = -m.count
-	poke(i, p, m)
+pci["pci-25"] = function(G, A) -- 25 inc &A : increase &A by 1
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = sign(unsign(C.count) + 1)
+	poke(G, P, C)
 end
-pci["pci-32"] = function(i, a) -- 2E not @A : bitwise not @A
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = -r-1
-	poke(i, a, m)
+pci["pci-26"] = function(G, A) -- 26 dec @A : decrease @A by 1
+	C = unsign(peek(G, A).count)
+	C.count = unsign(C.count) - 1
+	poke(G, A, C)
 end
-pci["pci-33"] = function(i, a) -- 2F not &A : bitwise not &A
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = -r-1
-	poke(i, p, m)
+pci["pci-27"] = function(G, A) -- 27 dec &A : decrease &A by 1
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = unsign(C.count) - 1
+	poke(G, P, C)
 end
 
-pci["pci-34"] = function(i, a) -- 28 lsh @A : left shift @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) *2^ r
-	poke(i, a, m)
+pci["pci-28"] = function(G, A) -- 40 mul @A : multiply by %R in @A
+	R = register
+	C = peek(G, A)
+	C.count = sign(C.count * R.count)
+	poke(G, A, C)
 end
-pci["pci-35"] = function(i, a) -- 29 lsh &A : left shift &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = unsign(m.count) *2^ r
-	poke(i, p, m)
+pci["pci-29"] = function(G, A) -- 41 mul &A : multiply by %R in &A
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = unsign(C.count) * R
+	poke(G, P, C)
 end
-pci["pci-36"] = function(i, a) -- 2A rsh @A : right shift @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = math.floor(m /2^ r)
-	poke(i, a, m)
+pci["pci-2A"] = function(G, A) -- 42 dvf @A : floor division @A by %R
+	R = register.count
+	C = peek(G, A)
+	C.count = math.floor(unsign(C.count) / R)
+	poke(G, A, C)
 end
-pci["pci-37"] = function(i, a) -- 2B rsh &A : right shift &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = math.floor(m /2^ r)
-	poke(i, p, m)
-end
-
-pci["pci-38"] = function(i, a) -- 30 and @A : bitwise and @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.band(m, r)
-	poke(i, a, m)
-end
-pci["pci-39"] = function(i, a) -- 31 and &A : bitwise and &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.band(m, r)
-	poke(i, p, m)
-end
-pci["pci-3A"] = function(i, a) -- 32 adn @A : bitwise and @A by not %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.band(m, b.bnot(r))
-	poke(i, a, m)
-end
-pci["pci-3B"] = function(i, a) -- 33 adn &A : bitwise and &A by not %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.band(m, b.bnot(r))
-	poke(i, p, m)
+pci["pci-2B"] = function(G, A) -- 43 dvf &A : floor division &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = math.floor(C / R)
+	poke(G, P, C)
 end
 
-pci["pci-3C"] = function(i, a) -- 34 nad @A : bitwise nand @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.bnot(b.band(m, r))
-	poke(i, a, m)
+pci["pci-2C"] = function(G, A) -- 44 dvc @A : ceil division @A by %R
+	R = register
+	C = peek(G, A)
+	C.count = sign(math.ceil(C.count / R.count))
+	poke(G, A, C)
 end
-pci["pci-3D"] = function(i, a) -- 35 nad &A : bitwise nand &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bnot(b.band(m, r))
-	poke(i, p, m)
+pci["pci-2D"] = function(G, A) -- 45 dvc &A : ceil division &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = sign(math.ceil(unsign(C.count) / unsign(R)))
+	poke(G, P, C)
 end
-pci["pci-3E"] = function(i, a) -- 36 ndn @A : bitwise nand @A by not %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.bnot(b.band(m, b.bnot(r)))
-	poke(i, a, m)
+pci["pci-2E"] = function(G, A) -- 46 mod @A : modulo @A by %R
+	R = register
+	C = peek(G, A)
+	C.count = sign(unsign(C.count) % unsign(R.count))
+	poke(G, A, C)
 end
-pci["pci-3F"] = function(i, a) -- 37 ndn &A : bitwise nand &A by not %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bnot(b.band(m, b.bnot(r)))
-	poke(i, p, m)
-end
-
-pci["pci-40"] = function(i, a) -- 38 ior @A : bitwise or @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = unsign(m.count) - r
-	poke(i, a, m)
-end
-pci["pci-41"] = function(i, a) -- 39 ior &A : bitwise or &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bor(unsign(m.count), r)
-	poke(i, p, m)
-end
-pci["pci-42"] = function(i, a) -- 3A orn @A : bitwise or @A by not %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.bor(unsign(m.count), b.bnot(r))
-	poke(i, a, m)
-end
-pci["pci-43"] = function(i, a) -- 3B orn &A : bitwise or &A by not %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bor(unsign(m.count), b.bnot(r))
-	poke(i, p, m)
+pci["pci-2F"] = function(G, A) -- 47 mod &A : modulo &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = unsign(C.count) % R
+	poke(G, P, C)
 end
 
-pci["pci-44"] = function(i, a) -- 3C nor @A : bitwise nor @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.bnot(b.bor(unsign(m.count), r))
-	poke(i, a, m)
+pci["pci-30"] = function(G, A) -- 2C neg @A : negate @A
+	C = peek(G, A)
+	C.count = -C.count
+	poke(G, A, C)
 end
-pci["pci-45"] = function(i, a) -- 3D nor &A : bitwise nor &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bnot(b.bor(unsign(m.count), r))
-	poke(i, p, m)
+pci["pci-31"] = function(G, A) -- 2D neg &A : negate &A
+	P = peek(G, A)
+	C = peek(G, P.count)
+	C.count = -C.count
+	poke(G, P, C)
 end
-pci["pci-46"] = function(i, a) -- 3E nrn @A : bitwise nor @A by not %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.bnot(b.bor(unsign(m.count), b.bnot(r)))
-	poke(i, a, m)
+pci["pci-32"] = function(G, A) -- 2E not @A : bitwise not @A
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = -R-1
+	poke(G, A, C)
 end
-pci["pci-47"] = function(i, a) -- 3F nrn &A : bitwise nor &A by not %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bnot(b.bor(unsign(m.count), b.bnot(r)))
-	poke(i, p, m)
+pci["pci-33"] = function(G, A) -- 2F not &A : bitwise not &A
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = -R-1
+	poke(G, P, C)
 end
 
-pci["pci-48"] = function(i, a) -- 48 xor @A : bitwise xor @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.bxor(unsign(m.count), r)
-	poke(i, a, m)
+pci["pci-34"] = function(G, A) -- 28 lsh @A : left shift @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = unsign(C.count) *2^ R
+	poke(G, A, C)
 end
-pci["pci-49"] = function(i, a) -- 49 xor &A : bitwise xor &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bxor(unsign(m.count), r)
-	poke(i, p, m)
+pci["pci-35"] = function(G, A) -- 29 lsh &A : left shift &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = unsign(C.count) *2^ R
+	poke(G, P, C)
 end
-pci["pci-4A"] = function(i, a) -- 4A nxr @A : bitwise nxor @A by %R
-	r = peek(i, o+2).count
-	m = unsign(peek(i, a).count)
-	m.count = b.bxor(unsign(m.count), b.bnot(r))
-	poke(i, a, m)
+pci["pci-36"] = function(G, A) -- 2A rsh @A : right shift @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = math.floor(C /2^ R)
+	poke(G, A, C)
 end
-pci["pci-4B"] = function(i, a) -- 4B xrn &A : bitwise nxor &A by %R
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = b.bxor(unsign(m.count), b.bnot(r))
-	poke(i, p, m)
+pci["pci-37"] = function(G, A) -- 2B rsh &A : right shift &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = math.floor(C /2^ R)
+	poke(G, P, C)
 end
 
-pci["pci-4C"] = function(i, a) -- 4C rnd @A : random in @A
-	m = peek(i, a)
-	m.count = math.random(-2147483648,2147483647)
-	poke(i, a, m)
+pci["pci-38"] = function(G, A) -- 30 and @A : bitwise and @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.band(C, R)
+	poke(G, A, C)
 end
-pci["pci-4D"] = function(i, a) -- 4D rnd &A : random in &A
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = math.random(-2147483648,2147483647)
-	poke(i, p, m)
+pci["pci-39"] = function(G, A) -- 31 and &A : bitwise and &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.band(C, R)
+	poke(G, P, C)
 end
-pci["pci-4E"] = function(i, a) -- 4E rnd @A : random in @A in %R range
-	r = peek(i, o+2).count
-	m = peek(i, a)
-	m.count = math.random(0,r)
-	poke(i, a, m)
+pci["pci-3A"] = function(G, A) -- 32 adn @A : bitwise and @A by not %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.band(C, b.bnot(R))
+	poke(G, A, C)
 end
-pci["pci-4F"] = function(i, a) -- 4F rnd &A : random in &A in %R range
-	r = peek(i, o+2).count
-	p = peek(i, a).count
-	m = peek(i, p)
-	m.count = math.random(0,r)
-	poke(i, p, m)
+pci["pci-3B"] = function(G, A) -- 33 adn &A : bitwise and &A by not %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.band(C, b.bnot(R))
+	poke(G, P, C)
+end
+
+pci["pci-3C"] = function(G, A) -- 34 nad @A : bitwise nand @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.bnot(b.band(C, R))
+	poke(G, A, C)
+end
+pci["pci-3D"] = function(G, A) -- 35 nad &A : bitwise nand &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bnot(b.band(C, R))
+	poke(G, P, C)
+end
+pci["pci-3E"] = function(G, A) -- 36 ndn @A : bitwise nand @A by not %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.bnot(b.band(C, b.bnot(R)))
+	poke(G, A, C)
+end
+pci["pci-3F"] = function(G, A) -- 37 ndn &A : bitwise nand &A by not %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bnot(b.band(C, b.bnot(R)))
+	poke(G, P, C)
+end
+
+pci["pci-40"] = function(G, A) -- 38 ior @A : bitwise or @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = unsign(C.count) - R
+	poke(G, A, C)
+end
+pci["pci-41"] = function(G, A) -- 39 ior &A : bitwise or &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bor(unsign(C.count), R)
+	poke(G, P, C)
+end
+pci["pci-42"] = function(G, A) -- 3A orn @A : bitwise or @A by not %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.bor(unsign(C.count), b.bnot(R))
+	poke(G, A, C)
+end
+pci["pci-43"] = function(G, A) -- 3B orn &A : bitwise or &A by not %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bor(unsign(C.count), b.bnot(R))
+	poke(G, P, C)
+end
+
+pci["pci-44"] = function(G, A) -- 3C nor @A : bitwise nor @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.bnot(b.bor(unsign(C.count), R))
+	poke(G, A, C)
+end
+pci["pci-45"] = function(G, A) -- 3D nor &A : bitwise nor &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bnot(b.bor(unsign(C.count), R))
+	poke(G, P, C)
+end
+pci["pci-46"] = function(G, A) -- 3E nrn @A : bitwise nor @A by not %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.bnot(b.bor(unsign(C.count), b.bnot(R)))
+	poke(G, A, C)
+end
+pci["pci-47"] = function(G, A) -- 3F nrn &A : bitwise nor &A by not %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bnot(b.bor(unsign(C.count), b.bnot(R)))
+	poke(G, P, C)
+end
+
+pci["pci-48"] = function(G, A) -- 48 xor @A : bitwise xor @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.bxor(unsign(C.count), R)
+	poke(G, A, C)
+end
+pci["pci-49"] = function(G, A) -- 49 xor &A : bitwise xor &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bxor(unsign(C.count), R)
+	poke(G, P, C)
+end
+pci["pci-4A"] = function(G, A) -- 4A nxr @A : bitwise nxor @A by %R
+	R = register.count
+	C = unsign(peek(G, A).count)
+	C.count = b.bxor(unsign(C.count), b.bnot(R))
+	poke(G, A, C)
+end
+pci["pci-4B"] = function(G, A) -- 4B xrn &A : bitwise nxor &A by %R
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = b.bxor(unsign(C.count), b.bnot(R))
+	poke(G, P, C)
+end
+
+pci["pci-4C"] = function(G, A) -- 4C rnd @A : random in @A
+	C = peek(G, A)
+	C.count = math.random(-2147483648,2147483647)
+	poke(G, A, C)
+end
+pci["pci-4D"] = function(G, A) -- 4D rnd &A : random in &A
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = math.random(-2147483648,2147483647)
+	poke(G, P, C)
+end
+pci["pci-4E"] = function(G, A) -- 4E rnd @A : random in @A in %R range
+	R = register.count
+	C = peek(G, A)
+	C.count = math.random(0,R)
+	poke(G, A, C)
+end
+pci["pci-4F"] = function(G, A) -- 4F rnd &A : random in &A in %R range
+	R = register.count
+	P = peek(G, A).count
+	C = peek(G, P)
+	C.count = math.random(0,R)
+	poke(G, P, C)
 end
 

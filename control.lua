@@ -344,8 +344,20 @@ classes["controller-cpu"]={
 		local power = config.power
 		local grp = global.rgrp[eid]
 		if entity.get_control_behavior().enabled and energy[grp] ~= nil and energy[grp][1] > power then
-			o = (global.rgid[eid]-1)*16
-			pointer = peek(eid, o+1).count
+			origin = (global.rgid[eid]-1)*16
+			cell = peek(eid, origin)
+			if cell.signal.name == "pci-66" then
+				control = cell.count
+			else
+				control = origin
+			end
+			pointer = peek(eid, control+1).count
+			register = peek(eid, control+2)
+			if register.signal.name == "pci-65" then
+				register = register.count
+			else
+				register = control+2
+			end
 			brk = false
 			while true do
 				cycles = cycles + 1
@@ -360,8 +372,8 @@ classes["controller-cpu"]={
 				if cycles >= config.cpt then break end
 				if brk then break end
 			end
-			poke(eid, o+1, {signal={type="virtual", name="pci-10"}, count=pointer, eid=2})
-			state = peek(eid, o)
+			poke(eid, control+1, {signal={type="virtual", name="pci-10"}, count=pointer, eid=2})
+			state = peek(eid, control)
 			entity.get_control_behavior().enabled = state.signal.name ~= "pci-0E" and state.signal.name ~= "pci-0F"
 		end
 		for pi, player in pairs(global.rpid[eid]) do
