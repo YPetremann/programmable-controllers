@@ -1,10 +1,10 @@
 {
   "name": "programmable-controllers",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "title": "Programmable Controllers",
   "author": "YPetrermann",
   "homepage": "",
   "dependencies": ["base"],
-  "factorio_version": "0.15",
+  "factorio_version": "0.16",
   "description": "Programmable circuit network controller"
 }

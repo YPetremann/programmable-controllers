@@ -1,8 +1,9 @@
-data:extend({ 
+data:extend({
 	{
 		type = "constant-combinator",
 		name = "controller-mem",
 		icon = "__programmable-controllers__/graphics/icons/controller-mem.png",
+		icon_size = 32,
 		flags = {"placeable-neutral", "player-creation"},
 		fast_replaceable_group = "controller",
 		minable = {hardness = 0.2, mining_time = 0.5, result = "controller-mem"},
@@ -50,34 +51,10 @@ data:extend({
 			}
 		},
 		activity_led_sprites = {
-			north = {
-				filename = "__base__/graphics/entity/combinator/activity-leds/combinator-led-constant-north.png",
-				width = 11,
-				height = 10,
-				frame_count = 1,
-				shift = {0.296875, -0.40625},
-			},
-			east = {
-				filename = "__base__/graphics/entity/combinator/activity-leds/combinator-led-constant-east.png",
-				width = 14,
-				height = 12,
-				frame_count = 1,
-				shift = {0.25, -0.03125},
-			},
-			south = {
-				filename = "__base__/graphics/entity/combinator/activity-leds/combinator-led-constant-south.png",
-				width = 11,
-				height = 11,
-				frame_count = 1,
-				shift = {-0.296875, -0.078125},
-			},
-			west = {
-				filename = "__base__/graphics/entity/combinator/activity-leds/combinator-led-constant-west.png",
-				width = 12,
-				height = 12,
-				frame_count = 1,
-				shift = {-0.21875, -0.46875},
-			}
+			north = {filename = "__programmable-controllers__/graphics/null.png", width = 1, height = 1, frame_count = 1, shift = {0,0}},
+			east = {filename = "__programmable-controllers__/graphics/null.png", width = 1, height = 1, frame_count = 1, shift = {0,0}},
+			south = {filename = "__programmable-controllers__/graphics/null.png", width = 1, height = 1, frame_count = 1, shift = {0,0}},
+			west = {filename = "__programmable-controllers__/graphics/null.png", width = 1, height = 1, frame_count = 1, shift = {0,0}}
 		},
 		activity_led_light = {
 			intensity = 0.8,
@@ -140,6 +117,7 @@ data:extend({
 		type = "item",
 		name = "controller-mem",
 		icon = "__programmable-controllers__/graphics/icons/controller-mem.png",
+		icon_size = 32,
 		flags = {"goes-to-quickbar"},
 		subgroup = "pc-blocks",
 		order = "a-c",

@@ -71,7 +71,7 @@ function remap(entity, mode) -- OK
 	local y = math.floor(entity.position.y)
 	local eid = cantorPair(x, y)
 	local update = {}
-	if mode then 
+	if mode then
 		-- add entity to entity db
 		global.ent[eid] = entity
 		-- add entity to group map
@@ -88,7 +88,7 @@ function remap(entity, mode) -- OK
 			local oy = y + o[2]
 			local oeid = cantorPair(ox, oy)
 			if global.ent[oeid] ~= nil then
-				if not update[oeid] then 
+				if not update[oeid] then
 					update[oeid]=true
 				end
 			end
@@ -131,7 +131,7 @@ function remap(entity, mode) -- OK
 			local oy = y + o[2]
 			local oeid = cantorPair(ox, oy)
 			if global.ent[oeid] ~= nil then
-				if not update[oeid] then 
+				if not update[oeid] then
 					update[oeid]=true
 				end
 			end
@@ -267,16 +267,16 @@ end
 classes["controller-mem"]={
 	on_load_mem=function(index, entity)
 		return entity.get_control_behavior().parameters.parameters
-	end, 
+	end,
 	on_save_mem=function(index, entity, chunk)
 		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
-	end, 
+	end,
 }
 classes["controller-ext"]={}
 classes["controller-pow"]={
 	on_built_entity=function(entity)
 		entity.power_usage = 1000/60
-	end, 
+	end,
 }
 classes["controller-con"]={
 	on_load_mem=function(index, entity)
@@ -310,10 +310,10 @@ classes["controller-con"]={
 			table.insert(ret, {t=item.signal.type, s=item.signal.name, c=item.count})
 		end
 		return parameters.parameters
-	end, 
+	end,
 	on_save_mem=function(index, entity, chunk)
 		global.ent[index].get_control_behavior().parameters = {parameters=chunk}
-	end, 
+	end,
 }
 classes["controller-cpu"]={
 	on_gui_create=function(index, entity, player)
@@ -327,10 +327,10 @@ classes["controller-cpu"]={
 		gui.mem.vertical_scroll_policy="auto"
 		gui.mem.horizontal_scroll_policy="never"
 		gui.mem.style.maximal_height=500
-	end, 
+	end,
 	on_gui_destroy=function(index, entity, player)
 		player.gui.left["pci-cpu-"..index].destroy()
-	end, 
+	end,
 	on_built_entity=function(entity)
 		entity.get_control_behavior().enabled=false
 		parameters = entity.get_control_behavior().parameters
@@ -338,7 +338,7 @@ classes["controller-cpu"]={
 		parameters.parameters[2]={signal={type="virtual", name="pci-10"}, count=3, index=2}
 		parameters.parameters[3]={signal={type="virtual", name="pci-00"}, count=0, index=3}
 		entity.get_control_behavior().parameters=parameters
-	end, 
+	end,
 	on_tick=function(eid, entity, energy)
 		local cycles = 0
 		local power = config.power
@@ -383,11 +383,11 @@ classes["controller-cpu"]={
 	end,
 	on_load_mem=function(eid, entity)
 		return entity.get_control_behavior().parameters.parameters
-	end, 
+	end,
 	on_save_mem=function(eid, entity, chunk)
 		entity.get_control_behavior().parameters = {parameters=chunk}
-	end, 
-	on_removed_entity=function(entity) end, 
+	end,
+	on_removed_entity=function(entity) end,
 }
 
 local function on_built_entity(event) -- OK
@@ -498,6 +498,6 @@ script.on_configuration_changed(on_init)
 script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_built_entity, on_built_entity)
 script.on_event(defines.events.on_robot_built_entity, on_built_entity)
-script.on_event(defines.events.on_preplayer_mined_item, on_removed_entity)
+script.on_event(defines.events.on_pre_player_mined_item, on_removed_entity)
 script.on_event(defines.events.on_robot_pre_mined, on_removed_entity)
 script.on_event(defines.events.on_entity_died, on_removed_entity)

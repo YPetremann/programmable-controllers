@@ -22,6 +22,7 @@ for i=0,127,1 do
 		type = "virtual-signal",
 		name = "pci-"..int,
 		icon = "__programmable-controllers__/graphics/icons/instructions/pci-"..int..".png",
+		icon_size = 32,
 		subgroup = grp,
 		order = int
 	}})
