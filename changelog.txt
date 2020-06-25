@@ -1,0 +1,33 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.18.2
+Date: ????
+  Changes:
+    - rework instructions registration
+    - rework dumping icons and locales
+---------------------------------------------------------------------------------------------------
+Version: 0.18.1
+Date: 2020-06-08
+  Changes:
+    - updated graphics
+    - mod can have components and instructions addons
+    - saving and loading in text editor now works
+    - reset pause and play now works on cpu
+---------------------------------------------------------------------------------------------------
+Version: 0.18.0
+Date: 2020-06-01
+  Changes:
+    - Ported for 0.18.x
+---------------------------------------------------------------------------------------------------
+Version: 0.17.1
+Date: 2019-04-01
+  Changes:
+    - Added changelog
+    - Added thumbnail thumbnail
+---------------------------------------------------------------------------------------------------
+Version: 0.17.0
+Date: 2019-04-01
+  Changes:
+    - Updated for 0.17
+    - Added debugger (aka code editor, but can't save)
+    - fixed instruction set
+

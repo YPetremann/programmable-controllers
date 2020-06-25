@@ -7,14 +7,14 @@
 		xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 		xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
 		xmlns:svg="http://www.w3.org/2000/svg"
-		xmlns:xlink="http://www.w3.org/1999/xlink" width="256px" height="512px" id="svg2" version="1.2" viewBox="0 0 8 16" tag="" >
+		xmlns:xlink="http://www.w3.org/1999/xlink" width="640px" height="2048px" id="svg2" version="1.2" viewBox="0 0 10 32" tag="">
 	<sodipodi:namedview id="namedview9414" showgrid="true" inkscape:window-maximized="0" inkscape:zoom="3" inkscape:cx="46" inkscape:cy="189" inkscape:window-width="1248" inkscape:window-height="998" inkscape:window-x="20" inkscape:window-y="40" inkscape:current-layer="svg2">
 		<inkscape:grid id="grid4006" type="xygrid" empspacing="32" color="white" opacity="0.20" empcolor="#3f3f00" empopacity="0.20" />
 	</sodipodi:namedview>
 	<style>
 		* { stroke:none; }
 		image { image-rendering:optimizeSpeed; }
-		text { font-family:'Visitor TT1 BRK'; font-size:10px;fill:silver;}
+		text { font-family:'Visitor TT1 (BRK)'; font-size:10px;fill:silver;}
 		.fill { fill-opacity:0.20; }
 		.register { fill:yellow; }
 		.value { fill:fuchsia; }
@@ -29,19 +29,19 @@
 			<image x="0" y="0" width="1" height="1" xlink:href="XX.png" />
 		</pattern>
 		<pattern width="1" height="1" id="signalred" patternUnits="userSpaceOnUse">
-			<rect x="3" y="2" width="26" height="26" class="fill" fill="red" transform="scale(0.03125)"/>
+			<rect x="2" y="2" width="28" height="28" rx="3.25"  class="fill" fill="red" transform="scale(0.03125)"/>
 		</pattern>
 		<pattern width="1" height="1" id="signalblue" patternUnits="userSpaceOnUse">
-			<rect x="3" y="2" width="26" height="26" class="fill" fill="blue" transform="scale(0.03125)"/>
+			<rect x="2" y="2" width="28" height="28" rx="3.25"  class="fill" fill="blue" transform="scale(0.03125)"/>
 		</pattern>
 		<pattern width="1" height="1" id="signalgreen" patternUnits="userSpaceOnUse">
-			<rect x="3" y="2" width="26" height="26" class="fill" fill="lime" transform="scale(0.03125)"/>
+			<rect x="2" y="2" width="28" height="28" rx="3.25"  class="fill" fill="lime" transform="scale(0.03125)"/>
 		</pattern>
 		<pattern width="1" height="1" id="signalyellow" patternUnits="userSpaceOnUse">
-			<rect x="3" y="2" width="26" height="26" class="fill" fill="yellow" transform="scale(0.03125)"/>
+			<rect x="2" y="2" width="28" height="28" rx="3.25"  class="fill" fill="yellow" transform="scale(0.03125)"/>
 		</pattern>
 		<pattern width="1" height="1" id="signalpurple" patternUnits="userSpaceOnUse">
-			<rect x="3" y="2" width="26" height="26" class="fill" fill="magenta" transform="scale(0.03125)"/>
+			<rect x="2" y="2" width="28" height="28" rx="3.25"  class="fill" fill="magenta" transform="scale(0.03125)"/>
 		</pattern>
 	</defs>
 	<rect x="0" y="0" width="8" height="16" id="signalbase" style="fill:url(#signalpattern)" />
@@ -56,9 +56,9 @@
 	</xsl:template>
 	<xsl:template match="instruction">
 		<xsl:variable name="typeName"><xsl:value-of select="@type"/></xsl:variable>
-		<g id="pci-{@id}.png">
-			<rect x="{@x}" y="{@y}" width="1" height="1" fill="none" stroke="none"/>
-			<text x="4" y="8" xml:space="preserve" transform="matrix(0.03125,0,0,0.03125,{@x},{@y})">
+		<g>
+			<rect id="pci-{@id}" x="{@x}" y="{@y}" width="1" height="1" fill="none" stroke="none"/>
+			<text x="4" y="9" xml:space="preserve" transform="matrix(0.03125,0,0,0.03125,{@x},{@y})">
 				<tspan x="10" class="index"><xsl:value-of select="@id"/></tspan>
 				<tspan x="4" dy="6" class="name"><xsl:value-of select="@name"/></tspan><xsl:if
 				test="$typeName = 'value'"><tspan class="value">#</tspan></xsl:if><xsl:if

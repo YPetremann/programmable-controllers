@@ -1,29 +1,59 @@
-function DEC_HEX(IN)
-	OUT = string.format("%x", IN or 0):upper()
-	while #OUT<2 do OUT = "0"..OUT end
-	return OUT
+print("==== ====")
+local ee = string.char(27)
+local datas = require("addons.programmable-controllers")
+local files = {}
+if not pcall(
+   function()
+      files = require "files"
+   end
+) then
+   print(ee .. "[31m - can't load file list")
 end
-function HEX_DEC(IN)
-	return tonumber(IN or 0, 16)
+for id, name in pairs(datas.pcn) do
+   local warn = nil
+   local error = nil
+   if not datas.pcn[id] then
+      error = "name missing"
+   end
+   if not datas.pci[id] then
+      error = "func missing"
+   end
+   if not datas.pco[id] then
+      error = "order missing"
+   end
+   if not datas.pcg[id] then
+      warn = "icon definition missing"
+   end
+   if not datas.pcl[id] then
+      warn = "locale definition missing"
+   end
+   local icon = "__programmable-controllers__/graphics/icons/instructions/" .. id .. ".png"
+   if not files[icon] then
+      error = "icon missing : " .. icon
+   end
+   if not error then
+      local subgroup, order = string.match(datas.pco[id], "(.+):(.+)")
+      if string.find("01234567WX", order) then
+         subgroup = subgroup .. "+"
+      end
+      if string.find("89ABCDEFYZ", order) then
+         subgroup = subgroup .. "-"
+      end
+      -- adding subgroup
+      if data.raw["item-subgroup"][subgroup] == nil then
+         data:extend{
+            {type = "item-subgroup", group = "programmable-controllers", name = subgroup, order = "i" .. subgroup},
+         }
+      end
+      -- adding instruction
+      data:extend{{type = "virtual-signal", name = id, icon = icon, icon_size = 64, subgroup = subgroup, order = order}}
+      if warn then
+         print(ee .. "[32m - added " .. id .. " : " .. warn)
+      else
+         print(ee .. "[32m - added " .. id)
+      end
+   else
+      print(ee .. "[31m - can't add " .. id .. " : " .. error)
+   end
 end
-
-for i=0,127,1 do
-	local int = DEC_HEX(i)
-	local grp = "pci"..(i<80 and "0" or "")..tostring(math.floor(i/8))
-	if data.raw["item-subgroup"][grp] == nil then
-		data:extend({{
-			type = "item-subgroup",
-			group = "programmable-controllers",
-			name = grp,
-			order = grp
-		}})
-	end
-	data:extend({{
-		type = "virtual-signal",
-		name = "pci-"..int,
-		icon = "__programmable-controllers__/graphics/icons/instructions/pci-"..int..".png",
-		icon_size = 32,
-		subgroup = grp,
-		order = int
-	}})
-end
+print("==== ====")

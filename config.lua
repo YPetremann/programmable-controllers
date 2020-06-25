@@ -1,4 +1,5 @@
-config = {}
-config.cpt   = 128    -- Cycles Per Ticks
-config.power = 10    -- power usage
-config.debug = true  -- Debug Output (very laggy)
+local config = {}
+config.cpt = settings.startup["pc-cycle-per-tick"].value
+config.power = settings.startup["pc-power-usage"].value
+config.blocksize = settings.startup["pc-memory-block-size"].value
+return config
