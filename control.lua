@@ -171,7 +171,7 @@ local function on_tick(event)
         end
         -- set energy
         for eid, entity in pairs(global.ent) do
-            if entity.name == "pc-pow" then
+            if entity.valid and entity.name == "pc-pow" then
                 local grp = global.rgrp[eid]
                 local egrp = energy[grp] or {0, 0}
                 entity.energy = egrp[1] / egrp[2]
