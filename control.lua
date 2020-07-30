@@ -67,8 +67,7 @@ local function on_gui_opened(e)
     local pid = e.player_index
     local entity = e.entity
     if entity == nil then return end
-    local eid = pc_utils.cantorPair(math.floor(entity.position.x),
-                                    math.floor(entity.position.y))
+    local eid = entity.unit_number
     if global.rgrp[eid] == nil then return end
     if global.rpid[eid] == nil then global.rpid[eid] = {} end
     global.rpid[eid][pid] = game.players[pid]
@@ -234,7 +233,7 @@ local function on_load()
 end
 
 if __DebugAdapter then
-    commands.add_command("debug", "", __DebugAdapter.breakpoint)
+    commands.add_command("debug", "", function() __DebugAdapter.breakpoint() end)
 end
 local function on_init()
     -- eid is the cantor pair of the entity position
@@ -258,6 +257,7 @@ local function on_init()
 
     -- get neighbours from eid
     global.sxy = global.sxy or {} -- [ent.surface.name][ent.position.x][ent.position.y] = > {eid=>uidqq}            -- OK
+    global.rsxy = global.rsxy or {} -- [s|x|y][eid] = > number            -- OK
 
     -- get datas from eid
     global.data = global.data or {} -- [eid] = > {data...}            -- OK

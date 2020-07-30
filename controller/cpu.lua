@@ -9,7 +9,7 @@ return {
     ["pc-cpu"] = {
         on_gui_create = function(index, entity, player)
             editor.create(index, entity, player)
-            local gui = player.gui.left.add {
+            local gui = player.gui.screen.programmable_controllers.add {
                 type = "frame",
                 name = entity.name .. "-" .. index,
                 direction = "vertical",
@@ -50,13 +50,11 @@ return {
             gui.cycles.style.minimal_width = 256
         end,
         on_gui_destroy = function(index, entity, player)
-            editor.destroy(player.gui.left, "pc-mem-window")
-            editor.destroy(player.gui.left, entity.name .. "-" .. index)
+            editor.destroy(player.gui.screen, "programmable_controllers")
         end,
         on_built_entity = function(entity)
             entity.get_control_behavior().enabled = false
-            local eid = pc_utils.cantorPair(math.floor(entity.position.x),
-                                            math.floor(entity.position.y))
+            local eid = entity.unit_number
             local index = (global.rgid[eid] - 1) * config.blocksize + 6
             local parameters = entity.get_control_behavior().parameters
             if parameters.parameters[2].name then
@@ -234,7 +232,9 @@ return {
             end
             if global.rpid[eid] then
                 for pi, player in pairs(global.rpid[eid]) do
-                    local gui = player.gui.left[entity.name .. "-" .. eid]
+                    local gui =
+                        player.gui.screen.programmable_controllers[entity.name ..
+                            "-" .. eid]
                     gui.cycles.value = cycles / config.cpt
                 end
             end

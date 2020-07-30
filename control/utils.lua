@@ -133,28 +133,37 @@ function lib.mem_save(e)
         end
     end
 end
-local function add_sxy(s, x, y, i)
+function lib.add_sxy(s, x, y, i)
+    global.rsxy = global.rsxy or {}
+    global.rsxy[i] = {s = s, x = x, y = y, i = i}
+
     global.sxy = global.sxy or {}
     global.sxy[s] = global.sxy[s] or {}
     global.sxy[s][x] = global.sxy[s][x] or {}
-    global.sxy[s][x][y] = global.sxy[s][x][y] or {}
-    table.insert(global.sxy[s][x][y], i)
+    global.sxy[s][x][y] = global.rsxy[i]
 end
-local function get_sxy(s, x, y)
-    return global.sxy and global.sxy[s] and global.sxy[s][x] and
-               global.sxy[s][x][y]
-end
-local function delete_sxy(s, x, y, i)
-    if i then
-        for k, v in ipairs(global.sxy[s][x][y]) do
-            if v == i then table.remove(global.sxy[s][x][y], k) end
-        end
+function lib.get_sxy(s, x, y, i)
+    if i and s == nil or x == nil or y == nil then
+        return global.rsxy and global.rsxy[i]
     else
-        global.sxy[s][x][y] = {}
+        return global.sxy and global.sxy[s] and global.sxy[s][x] and
+                   global.sxy[s][x][y]
     end
-    if table_size(global.sxy[s][x][y]) == 0 then global.sxy[s][x][y] = nil end
+end
+function lib.delete_sxy(s, x, y, i)
+    if i and s == nil or x == nil or y == nil then
+        local l = global.rsxy[i]
+        s = l.s
+        x = l.x
+        y = l.y
+    else
+        i = global.sxy[s][x][y]
+    end
+
+    global.sxy[s][x][y] = nil
     if table_size(global.sxy[s][x]) == 0 then global.sxy[s][x] = nil end
     if table_size(global.sxy[s]) == 0 then global.sxy[s] = nil end
+    global.rsxy[i] = nil
 end
 
 function lib.remap(entity, mode) -- OK
@@ -165,9 +174,12 @@ function lib.remap(entity, mode) -- OK
 
     local update = {}
     if mode then
-        add_sxy(surface, x, y, eid)
-        -- add entity to entity db
+        game.print("== add")
+        lib.add_sxy(surface, x, y, eid)
+        game.print(("%s %s %s %s"):format(surface, x, y, eid))
+        -- add entity to group map
         global.ent[eid] = entity
+
         -- add entity to group map
         local gid = eid
         global.grp[gid] = {eid}
@@ -177,23 +189,28 @@ function lib.remap(entity, mode) -- OK
         -- add entity to update map
         update[eid] = true
         -- add adjacent entity to update map
-        for _, o in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
-            local ox = x + o[1]
-            local oy = y + o[2]
-            local oeid = lib.cantorPair(ox, oy)
-            if global.ent[oeid] ~= nil then
-                if not update[oeid] then update[oeid] = true end
+        game.print("== update adjacent")
+        for _, offset in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
+            local offset_x = x + offset[1]
+            local offset_y = y + offset[2]
+            local offset = lib.get_sxy(surface, offset_x, offset_y)
+            if offset and offset.i and global.ent[offset.i] and
+                not update[offset.i] then
+                game.print(("%s %s %s %s"):format(surface, offset.x, offset.y,
+                                                  offset.i))
+
+                update[offset.i] = true
             end
         end
         -- set every entity of these groups to be updated
         local buf = {}
-        for ueid, _ in pairs(update) do
-            local ugid = global.rgrp[ueid]
-            if global.grp[ugid] ~= nil then
-                for _, ugeid in pairs(global.grp[ugid]) do
-                    table.insert(buf, ugeid)
+        for update_eid, _ in pairs(update) do
+            local update_gid = global.rgrp[update_eid]
+            if global.grp[update_gid] then
+                for _, update_group_eid in pairs(global.grp[update_gid]) do
+                    table.insert(buf, update_group_eid)
                 end
-                global.grp[ugid] = nil
+                global.grp[update_gid] = nil
             end
         end
         -- merge groups
@@ -215,48 +232,49 @@ function lib.remap(entity, mode) -- OK
         -- remove entity to gui map
         global.rpid[eid] = nil
         global.mem[eid] = nil
+        lib.delete_sxy(surface, x, y, eid)
         -- add adjacent entity to update map
-        for _, o in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
-            local ox = x + o[1]
-            local oy = y + o[2]
-            local oeid = lib.cantorPair(ox, oy)
-            if global.ent[oeid] ~= nil then
-                if not update[oeid] then update[oeid] = true end
+        for _, offset in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
+            local offset_x = x + offset[1]
+            local offset_y = y + offset[2]
+            local offset_eid = lib.get_sxy(surface, offset_x, offset_y)
+            if offset_eid and global.ent[offset_eid] and not update[offset_eid] then
+                update[offset_eid] = true
             end
         end
         -- set every entity of these groups to be updated
         local buf = {}
-        for ueid, _ in pairs(update) do
-            local ugid = global.rgrp[ueid]
-            if global.grp[ugid] ~= nil then
-                for _, ugeid in pairs(global.grp[ugid]) do
-                    table.insert(buf, ugeid)
+        for update_eid, _ in pairs(update) do
+            local update_gid = global.rgrp[update_eid]
+            if global.grp[update_gid] ~= nil then
+                for _, update_group_eid in pairs(global.grp[update_gid]) do
+                    table.insert(buf, update_group_eid)
                 end
-                global.grp[ugid] = nil
+                global.grp[update_gid] = nil
             end
         end
         -- split groups
-        for _, bid in pairs(buf) do global.rgrp[bid] = 0 end
-        for ueid, _ in pairs(update) do
-            if global.rgrp[ueid] == 0 then
-                local ugid = ueid
-                global.grp[ugid] = global.grp[ugid] or {}
-                local ueids = {ueid}
-                while #ueids > 0 do
-                    local ueid = ueids[1]
-                    local sx, sy = lib.cantorUnpair(ueid)
-                    table.insert(global.grp[ugid], ueid)
-                    global.rgrp[ueid] = ugid
+        for _, buf_id in pairs(buf) do global.rgrp[buf_id] = 0 end
+        for update_eid, _ in pairs(update) do
+            if global.rgrp[update_eid] == 0 then
+                local update_gid = update_eid
+                global.grp[update_gid] = global.grp[update_gid] or {}
+                local update_eids = {update_eid}
+                while #update_eids > 0 do
+                    local update_eid = update_eids[1]
+                    local update_pos = lib.get_sxy(nil, nil, nil, update_eid)
+                    table.insert(global.grp[update_gid], update_eid)
+                    global.rgrp[update_eid] = update_gid
                     for _, o in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
-                        local ox = sx + o[1]
-                        local oy = sy + o[2]
-                        local oeid = lib.cantorPair(ox, oy)
+                        local ox = update_pos.x + o[1]
+                        local oy = update_pos.y + o[2]
+                        local oeid = lib.get_sxy(surface, ox, oy)
                         if global.ent[oeid] ~= nil and global.rgrp[oeid] == 0 then
-                            table.insert(ueids, oeid)
-                            global.rgrp[oeid] = ugid
+                            table.insert(update_eids, oeid)
+                            global.rgrp[oeid] = update_gid
                         end
                     end
-                    table.remove(ueids, 1)
+                    table.remove(update_eids, 1)
                 end
             end
         end
@@ -271,17 +289,17 @@ function lib.remap(entity, mode) -- OK
         table.sort(global.grp[ugid], function(a, b)
             local mema = addons.classes[global.ent[a].name].on_load_mem ~= nil
             local memb = addons.classes[global.ent[b].name].on_load_mem
-            local posax, posay = lib.cantorUnpair(a)
-            local posbx, posby = lib.cantorUnpair(b)
+            local posa = lib.get_sxy(nil, nil, nil, a)
+            local posb = lib.get_sxy(nil, nil, nil, b)
             if mema and not memb then
                 return true
             elseif not mema and memb then
                 return false
-            elseif posay < posby then
+            elseif posa.y < posb.y then
                 return true
-            elseif posay > posby then
+            elseif posa.y > posb.y then
                 return false
-            elseif posax < posbx then
+            elseif posa.x < posb.x then
                 return true
             else
                 return false
@@ -292,6 +310,8 @@ function lib.remap(entity, mode) -- OK
     for dgid, deids in pairs(global.grp) do
         for rgid, deid in pairs(deids) do global.rgid[deid] = rgid end
     end
+    game.print("== resume")
+    game.print(serpent.line(global.grp))
     return eid
 end
 
