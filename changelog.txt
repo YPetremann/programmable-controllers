@@ -1,9 +1,11 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.18.2
-Date: ????
+Date: 2020-07-31
   Changes:
     - rework instructions registration
     - rework dumping icons and locales
+  Bugfixes:
+    - fixed controllers not working
 ---------------------------------------------------------------------------------------------------
 Version: 0.18.1
 Date: 2020-06-08
