@@ -16,36 +16,18 @@ local function on_gui_click(e)
         local entity = global.ent[eid]
         local index = (global.rgid[eid] - 1) * config.blocksize + 6
         local parameters = entity.get_control_behavior().parameters
-        parameters.parameters[1] = {
-            signal = {type = "virtual", name = "pci-00"},
-            count = 0,
-            index = 1
-        }
-        parameters.parameters[2] = {
-            signal = {type = "virtual", name = "pci-10"},
-            count = index,
-            index = 2
-        }
-        parameters.parameters[3] = {
-            signal = {type = "virtual", name = "signal-blue"},
-            count = 0,
-            index = 3
-        }
-        parameters.parameters[4] = {
-            signal = {type = "virtual", name = "signal-green"},
-            count = 0,
-            index = 4
-        }
-        parameters.parameters[5] = {
-            signal = {type = "virtual", name = "signal-yellow"},
-            count = 0,
-            index = 5
-        }
-        parameters.parameters[6] = {
-            signal = {type = "virtual", name = "signal-red"},
-            count = 0,
-            index = 6
-        }
+        if parameters.parameters[1].signal.name ~= "pci-66" then
+            parameters.parameters[1] = {
+                signal = {type = "virtual", name = "pci-00"},
+                count = 0,
+                index = 1
+            }
+            parameters.parameters[2] = {
+                signal = {type = "virtual", name = "pci-10"},
+                count = index,
+                index = 2
+            }
+        end
         entity.get_control_behavior().parameters = parameters
     elseif e.element.name == "pc-pause" then
         pc_utils.mem_load(e)

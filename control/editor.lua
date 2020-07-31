@@ -1,3 +1,4 @@
+local Gui = require("__programmable-controllers__.lib.gui")
 local config = require("__programmable-controllers__.config")
 local memory = require("__programmable-controllers__.control.memory")
 local addons = require("__programmable-controllers__.control.addon_base")

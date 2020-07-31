@@ -57,7 +57,7 @@ return {
             local eid = entity.unit_number
             local index = (global.rgid[eid] - 1) * config.blocksize + 6
             local parameters = entity.get_control_behavior().parameters
-            if parameters.parameters[2].name then
+            if not parameters.parameters[2].name then
                 parameters.parameters[3] =
                     {
                         signal = {type = "virtual", name = "signal-blue"},
