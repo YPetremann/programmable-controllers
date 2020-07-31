@@ -167,6 +167,7 @@ function lib.delete_sxy(s, x, y, i)
 end
 
 function lib.remap(entity, mode) -- OK
+    print("=== on_removed_entity")
     local surface = entity.surface.name
     local x = math.floor(entity.position.x)
     local y = math.floor(entity.position.y)
@@ -174,9 +175,7 @@ function lib.remap(entity, mode) -- OK
 
     local update = {}
     if mode then
-        game.print("== add")
         lib.add_sxy(surface, x, y, eid)
-        game.print(("%s %s %s %s"):format(surface, x, y, eid))
         -- add entity to group map
         global.ent[eid] = entity
 
@@ -189,18 +188,12 @@ function lib.remap(entity, mode) -- OK
         -- add entity to update map
         update[eid] = true
         -- add adjacent entity to update map
-        game.print("== update adjacent")
         for _, offset in pairs({{0, -1}, {-1, 0}, {1, 0}, {0, 1}}) do
             local offset_x = x + offset[1]
             local offset_y = y + offset[2]
             local offset = lib.get_sxy(surface, offset_x, offset_y)
             if offset and offset.i and global.ent[offset.i] and
-                not update[offset.i] then
-                game.print(("%s %s %s %s"):format(surface, offset.x, offset.y,
-                                                  offset.i))
-
-                update[offset.i] = true
-            end
+                not update[offset.i] then update[offset.i] = true end
         end
         -- set every entity of these groups to be updated
         local buf = {}
@@ -225,7 +218,7 @@ function lib.remap(entity, mode) -- OK
         -- remove entity to group map
         local gid = global.rgrp[eid]
         local rgid = global.rgid[eid]
-        global.grp[gid][rgid] = nil
+        table.remove(global.grp[gid], rgid)
         if next(global.grp[gid]) == nil then global.grp[gid] = nil end
         global.rgrp[eid] = nil
         global.rgid[eid] = nil
@@ -310,8 +303,6 @@ function lib.remap(entity, mode) -- OK
     for dgid, deids in pairs(global.grp) do
         for rgid, deid in pairs(deids) do global.rgid[deid] = rgid end
     end
-    game.print("== resume")
-    game.print(serpent.line(global.grp))
     return eid
 end
 

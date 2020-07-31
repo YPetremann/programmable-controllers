@@ -119,21 +119,25 @@ local function on_built_entity(event) -- OK
     end
 end
 local function on_removed_entity(event) -- OK
+    print(">>> on_removed_entity")
     local entity = event.entity
-    if addons.classes[entity.name] ~= nil then
+    if entity.valid and addons.classes[entity.name] ~= nil then
         -- game.print("-"..entity.name)
-        if addons.classes[entity.name].on_removed_entity ~= nil then
-            addons.classes[entity.name].on_removed_entity(entity)
+        local eid = entity.unit_number
+        local name = entity.name
+        if addons.classes[name].on_removed_entity ~= nil then
+            addons.classes[name].on_removed_entity(entity)
         end
-        local eid = pc_utils.cantorPair(math.floor(entity.position.x),
-                                        math.floor(entity.position.y))
         if global.rpid[eid] then
             for pi, player in pairs(global.rpid[eid]) do
                 on_gui_closed({player_index = pi, entity = entity})
             end
         end
-        pc_utils.remap(entity, false)
+        if not addons.classes[name].secondary then
+            pc_utils.remap(entity, false)
+        end
     end
+    print("<<< on_removed_entity")
 end
 local function on_player_rotated_entity(event)
     -- event.entity.rotate{reverse = true}
